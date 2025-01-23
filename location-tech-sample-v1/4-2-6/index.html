@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Location Tech Sample</title>
+    <!-- LeafletのCSSの読み込み -->
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"
+      integrity=""
+      crossorigin=""
+    />
+    <!-- LeafletのJSの読み込み -->
+    <script
+      src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"
+      integrity=""
+      crossorigin=""
+    ></script>
+  </head>
+  <body>
+    <!-- 地図を表示するための要素 -->
+    <div id="map" style="height: 80vh"></div>
+    <script>
+      // 地図を表示するための要素を取得
+      const map = L.map("map", {
+        // 地図の中心とズームレベルを指定
+        center: [35.3627808, 138.7307908],
+        zoom: 14,
+      });
+      // 背景レイヤーインスタンスを初期化
+      const background = L.tileLayer(
+        // 地理院タイル空中写真
+        "https://cyberjapandata.gsi.go.jp/xyz/seamlessphoto/{z}/{x}/{y}.jpg",
+        {
+          maxZoom: 17,
+          attribution:
+            '<a href="https://maps.gsi.go.jp/development/ichiran.html">地理院タイル</a>',
+        }
+      );
+      // 背景レイヤーを地図に追加
+      map.addLayer(background);
+
+      // 円形
+      L.circle([35.3627808, 138.7307908], {
+        color: "yellow",
+        fillColor: "#ff0000",
+        fillOpacity: 0.3,
+        radius: 1000,
+      })
+        .bindPopup("I am a circle.")
+        .addTo(map);
+
+      // 線分
+      L.polyline(
+        [
+          [35.36, 138.73],
+          [35.37, 138.73],
+          [35.37, 138.74],
+          [35.38, 138.74],
+          [35.39, 138.75],
+          [35.37, 138.75],
+        ],
+        { color: "blue" }
+      )
+        .bindPopup("I am Polyline!")
+        .addTo(map);
+
+      // 多角形
+      L.polygon(
+        [
+          [35.36, 138.7307908],
+          [35.35, 138.74],
+          [35.34, 138.72],
+        ],
+        { color: "green" }
+      )
+        .bindPopup("I am a polygon.")
+        .addTo(map);
+    </script>
+  </body>
+</html>

@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Location Tech Sample</title>
+    <!-- LeafletのCSSの読み込み -->
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"
+      integrity=""
+      crossorigin=""
+    />
+    <!-- LeafletのJSの読み込み -->
+    <script
+      src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"
+      integrity=""
+      crossorigin=""
+    ></script>
+  </head>
+  <body>
+    <!-- 地図を表示するための要素 -->
+    <div id="map" style="height: 80vh"></div>
+    <script>
+      // 地図を表示するための要素を取得
+      const map = L.map("map", {
+        // 地図の中心とズームレベルを指定
+        center: [35.681236, 139.767125],
+        zoom: 5,
+      });
+      // 背景レイヤーインスタンスを初期化
+      const background = L.tileLayer(
+        "https://tile.openstreetmap.org/{z}/{x}/{y}.png", // OSMのURLテンプレート
+        {
+          maxZoom: 19,
+          attribution:
+            '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        }
+      );
+      // 背景レイヤーを地図に追加
+      map.addLayer(background);
+
+      // マーカーを追加
+      fetch("./P29-23_01.geojson")
+        .then((res) => res.json())
+        .then((json) => {
+          L.geoJSON(json)
+            .bindPopup((Layer) => Layer.feature.properties.P29_004)
+            .addTo(map);
+        });
+    </script>
+  </body>
+</html>

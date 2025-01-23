@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Location Tech Sample</title>
+    <!-- LeafletのCSSの読み込み -->
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"
+      integrity=""
+      crossorigin=""
+    />
+    <!-- LeafletのJSの読み込み -->
+    <script
+      src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"
+      integrity=""
+      crossorigin=""
+    ></script>
+  </head>
+  <body>
+    <!-- 地図を表示するための要素 -->
+    <div id="map" style="height: 80vh"></div>
+    <script>
+      // 地図を表示するための要素を取得
+      const map = L.map("map", {
+        // 地図の中心とズームレベルを指定
+        center: [35.681236, 139.767125],
+        zoom: 5,
+      });
+      // 背景レイヤーインスタンスを初期化
+      const background = L.tileLayer(
+        "https://tile.openstreetmap.org/{z}/{x}/{y}.png", // OSMのURLテンプレート
+        {
+          maxZoom: 19,
+          attribution:
+            '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        }
+      );
+      // 背景レイヤーを地図に追加
+      map.addLayer(background);
+
+      // マーカーを追加
+      // const marker = L.marker([33, 129.5]);
+      // marker.bindPopup("平面直角座標1系原点");
+      // map.addLayer(marker);
+      L.marker([33, 129.5]).bindPopup("平面直角座標1系原点").addTo(map);
+      L.marker([35.658581, 139.745433]).bindPopup("東京駅").addTo(map);
+      L.marker([35.681236, 139.767125]).bindPopup("東京タワー").addTo(map);
+      L.marker([35.710063, 139.8107]).bindPopup("東京スカイツリー").addTo(map);
+      L.marker([35.689634, 139.6917]).bindPopup("浅草寺").addTo(map);
+      L.marker([35.7126, 139.7796]).bindPopup("上野恩賜公園").addTo(map);
+      L.marker([35.6581, 139.6971]).bindPopup("東京ディズニーランド").addTo(map);
+      L.marker([35.6961, 139.5704]).bindPopup("東京ディズニーシー").addTo(map);
+      // 北海道の名所のポイントを追加
+      L.marker([43.0618, 141.3545]).bindPopup("札幌市時計台").addTo(map);
+    </script>
+  </body>
+</html>
