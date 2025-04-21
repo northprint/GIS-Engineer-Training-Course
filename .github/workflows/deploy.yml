@@ -96,12 +96,25 @@ jobs:
           name: postgis-extension-lambda
           path: get-satellite-image/lambda
           
-      - name: Lambdaパッケージの展開
+      - name: Lambdaパッケージの展開と確認
         run: |
           # ダウンロードしたzipファイルを展開してpostgis-extensionディレクトリに配置
+          echo "Lambdaパッケージの展開を開始します"
           mkdir -p get-satellite-image/lambda/postgis-extension
           unzip -o get-satellite-image/lambda/postgis-extension.zip -d get-satellite-image/lambda/postgis-extension
-          ls -la get-satellite-image/lambda/postgis-extension
+          
+          # ファイルが正しく展開されたか確認
+          echo "Lambdaディレクトリの内容:"
+          ls -la get-satellite-image/lambda/
+          echo "Lambdaパッケージの内容:"
+          ls -la get-satellite-image/lambda/postgis-extension/
+          
+          # 必要なファイルがあるか確認
+          if [ ! -f get-satellite-image/lambda/postgis-extension/index.py ]; then
+            echo "ERROR: index.pyが見つかりません"
+            # 必要なファイルがない場合は、リポジトリから直接コピー
+            cp -r get-satellite-image/lambda/postgis-extension-orig/* get-satellite-image/lambda/postgis-extension/ 2>/dev/null || true
+          fi
 
       - name: Node.jsのセットアップ
         uses: actions/setup-node@v4
@@ -121,6 +134,30 @@ jobs:
           cd get-satellite-image/cdk
           npm ci
 
+      - name: LambdaパッケージのS3アップロード
+        run: |
+          # LambdaパッケージをS3に直接アップロード
+          ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+          LAMBDA_BUCKET="lambda-packages-${{ env.AWS_REGION }}-${ACCOUNT_ID}"
+          
+          # S3バケットが存在するか確認
+          if ! aws s3 ls s3://${LAMBDA_BUCKET} 2>/dev/null; then
+            echo "Creating Lambda S3 bucket: ${LAMBDA_BUCKET}"
+            aws s3 mb s3://${LAMBDA_BUCKET} --region ${{ env.AWS_REGION }}
+          else
+            echo "Lambda S3 bucket already exists: ${LAMBDA_BUCKET}"
+          fi
+          
+          # Lambdaパッケージをアップロード
+          echo "Uploading Lambda package to S3"
+          cd get-satellite-image/lambda/postgis-extension
+          zip -r ../postgis-extension-deploy.zip .
+          aws s3 cp ../postgis-extension-deploy.zip s3://${LAMBDA_BUCKET}/postgis-extension.zip
+          
+          # 環境変数に設定
+          echo "LAMBDA_BUCKET=${LAMBDA_BUCKET}" >> $GITHUB_ENV
+          echo "LAMBDA_KEY=postgis-extension.zip" >> $GITHUB_ENV
+      
       - name: S3バケットの作成
         run: |
           # テンプレート保存用のS3バケットを作成
@@ -140,7 +177,19 @@ jobs:
           echo "TEMPLATE_BUCKET=${TEMPLATE_BUCKET}" >> $GITHUB_ENV
       
       - name: CDKスタックの合成とデプロイ
+        id: deploy
+        continue-on-error: true
         run: |
+          # Lambdaコードの参照先を一時的に修正
+          cd get-satellite-image/cdk
+          
+          # cdk-stack.tsを修正してS3からLambdaコードを読み込むようにする
+          if grep -q "lambda.Code.fromAsset('../lambda/postgis-extension'" lib/cdk-stack.ts; then
+            sed -i "s|lambda.Code.fromAsset('../lambda/postgis-extension'.*)|lambda.Code.fromBucket(s3.Bucket.fromBucketName(this, 'LambdaCodeBucket', '${LAMBDA_BUCKET}'), '${LAMBDA_KEY}')|g" lib/cdk-stack.ts
+            echo "Modified cdk-stack.ts to use S3 bucket for Lambda code"
+            grep -A 2 "Lambda.Code.from" lib/cdk-stack.ts
+          fi
+          
           cd get-satellite-image/cdk
           
           # CDKの設定ファイルを作成してブートストラップチェックをスキップ
@@ -160,6 +209,12 @@ jobs:
             --s3-bucket ${TEMPLATE_BUCKET} \
             --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND \
             --no-fail-on-empty-changeset
+      
+      - name: スタックイベントの取得と表示
+        if: steps.deploy.outcome == 'failure'
+        run: |
+          echo "スタックデプロイが失敗しました。イベントを確認します。"
+          aws cloudformation describe-stack-events --stack-name ${{ env.STACK_NAME }} --query "StackEvents[?ResourceStatus=='CREATE_FAILED' || ResourceStatus=='UPDATE_FAILED'].{Status:ResourceStatus,Reason:ResourceStatusReason,LogicalId:LogicalResourceId,Timestamp:Timestamp}" --output table
 
       - name: デプロイ結果の取得
         id: outputs
