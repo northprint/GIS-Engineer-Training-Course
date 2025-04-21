@@ -57,21 +57,14 @@ jobs:
 
       - name: 依存関係のインストール
         run: |
-          cd lambda/postgis-extension
+          # get-satellite-image/lambdaディレクトリで作業
+          cd get-satellite-image/lambda/postgis-extension
           pip install -r requirements.txt -t .
-          
-          # get-satellite-image/lambda/postgis-extensionディレクトリにもコピー
-          mkdir -p get-satellite-image/lambda/postgis-extension
-          cp -r * get-satellite-image/lambda/postgis-extension/
 
       - name: Lambdaデプロイパッケージの作成
         run: |
-          cd lambda/postgis-extension
+          cd get-satellite-image/lambda/postgis-extension
           zip -r ../postgis-extension.zip .
-          
-          # get-satellite-image/lambdaディレクトリにもコピー
-          mkdir -p get-satellite-image/lambda
-          cp ../postgis-extension.zip get-satellite-image/lambda/
 
       - name: Lambdaパッケージのアップロード
         uses: actions/upload-artifact@v4
@@ -123,7 +116,7 @@ jobs:
             echo "警告: postgis-extension.zipが見つかりません"
             # 代わりにリポジトリのファイルをコピー
             echo "リポジトリのファイルをコピーします"
-            cp -r ../../lambda/postgis-extension/* "$LAMBDA_DIR/"
+            echo "警告: postgis-extension.zipが見つかりませんでしたが、必要なファイルはすでに存在しているはずです"
           fi
           
           # ディレクトリ内容の確認
@@ -143,8 +136,6 @@ jobs:
           
           # リポジトリからLambda関数のコードをコピー
           echo "Lambda関数のコードをコピーします"
-          cp -r ../../lambda/postgis-extension/* postgis-extension/
-          # バックアップとして、リポジトリ内のファイルもコピー
           cp -r ../lambda/postgis-extension/* postgis-extension/ 2>/dev/null || true
           
           # ファイルの存在確認
