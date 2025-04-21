@@ -189,7 +189,9 @@ def handler(event, context):
     });
 
     const apiFunction = new lambda.DockerImageFunction(this, 'SatelliteImageApiFunction', {
-      code: lambda.DockerImageCode.fromImageAsset('../api'),
+      code: lambda.DockerImageCode.fromImageAsset('../api', {
+        platform: 'linux/amd64',
+      }),
       memorySize: 1024,
       timeout: Duration.seconds(30),
       vpc,
