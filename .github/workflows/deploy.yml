@@ -114,6 +114,14 @@ jobs:
           cd get-satellite-image/cdk
           npm ci
 
+      - name: S3バケットの作成
+        run: |
+          # テンプレート保存用のS3バケットを作成
+          ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+          TEMPLATE_BUCKET="cf-templates-${{ env.STACK_NAME }}-${{ env.AWS_REGION }}-${ACCOUNT_ID}"
+          aws s3 mb s3://${TEMPLATE_BUCKET} --region ${{ env.AWS_REGION }} || true
+          echo "TEMPLATE_BUCKET=${TEMPLATE_BUCKET}" >> $GITHUB_ENV
+      
       - name: CDKスタックの合成とデプロイ
         run: |
           cd get-satellite-image/cdk
@@ -132,6 +140,7 @@ jobs:
           aws cloudformation deploy \
             --template-file template.yaml \
             --stack-name ${{ env.STACK_NAME }} \
+            --s3-bucket ${TEMPLATE_BUCKET} \
             --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND \
             --no-fail-on-empty-changeset
 
