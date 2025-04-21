@@ -222,19 +222,43 @@ jobs:
           API_ENDPOINT=$(aws cloudformation describe-stacks --stack-name ${{ env.STACK_NAME }} --query "Stacks[0].Outputs[?OutputKey=='ApiEndpoint'].OutputValue" --output text)
           UI_ENDPOINT=$(aws cloudformation describe-stacks --stack-name ${{ env.STACK_NAME }} --query "Stacks[0].Outputs[?OutputKey=='UiEndpoint'].OutputValue" --output text)
           DB_ENDPOINT=$(aws cloudformation describe-stacks --stack-name ${{ env.STACK_NAME }} --query "Stacks[0].Outputs[?OutputKey=='DatabaseEndpoint'].OutputValue" --output text)
-          S3_BUCKET=$(aws cloudformation describe-stacks --stack-name ${{ env.STACK_NAME }} --query "Stacks[0].Resources[?LogicalResourceId=='SatelliteImageUiBucket'].PhysicalResourceId" --output text)
           echo "API_ENDPOINT=${API_ENDPOINT}" >> $GITHUB_ENV
           echo "UI_ENDPOINT=${UI_ENDPOINT}" >> $GITHUB_ENV
           echo "DB_ENDPOINT=${DB_ENDPOINT}" >> $GITHUB_ENV
+          
+          # S3バケットの物理IDを取得
+          echo "S3バケットの物理IDを取得します"
+          # CloudFormationスタックのリソース一覧を取得
+          aws cloudformation list-stack-resources --stack-name ${{ env.STACK_NAME }} > stack-resources.json
+          # SatelliteImageUiBucketの物理IDを抽出
+          S3_BUCKET=$(cat stack-resources.json | jq -r '.StackResourceSummaries[] | select(.LogicalResourceId=="SatelliteImageUiBucket") | .PhysicalResourceId')
+          echo "S3バケット名: ${S3_BUCKET}"
           echo "S3_BUCKET=${S3_BUCKET}" >> $GITHUB_ENV
       
       - name: UIファイルをS3にアップロード
         run: |
           echo "UIファイルをS3バケットにアップロードします: ${S3_BUCKET}"
+          
+          # S3バケット名が取得できているか確認
+          if [ -z "${S3_BUCKET}" ] || [ "${S3_BUCKET}" = "None" ]; then
+            echo "S3バケット名が取得できていません。CloudFormationスタックから手動で取得します。"
+            # スタックリソースを再取得
+            aws cloudformation list-stack-resources --stack-name ${{ env.STACK_NAME }} > stack-resources.json
+            S3_BUCKET=$(cat stack-resources.json | jq -r '.StackResourceSummaries[] | select(.LogicalResourceId=="SatelliteImageUiBucket") | .PhysicalResourceId')
+            echo "再取得したS3バケット名: ${S3_BUCKET}"
+            
+            # まだ取得できない場合はエラー
+            if [ -z "${S3_BUCKET}" ] || [ "${S3_BUCKET}" = "None" ]; then
+              echo "ERROR: S3バケット名を取得できませんでした。UIファイルのアップロードをスキップします。"
+              exit 0
+            fi
+          fi
+          
+          # UIファイルをS3にアップロード
           aws s3 sync get-satellite-image/ui/dist s3://${S3_BUCKET} --delete
           
           # CloudFrontキャッシュを無効化
-          DISTRIBUTION_ID=$(aws cloudformation describe-stacks --stack-name ${{ env.STACK_NAME }} --query "Stacks[0].Resources[?LogicalResourceId=='SatelliteImageDistribution'].PhysicalResourceId" --output text)
+          DISTRIBUTION_ID=$(aws cloudformation list-stack-resources --stack-name ${{ env.STACK_NAME }} | jq -r '.StackResourceSummaries[] | select(.LogicalResourceId=="SatelliteImageDistribution") | .PhysicalResourceId')
           if [ ! -z "${DISTRIBUTION_ID}" ]; then
             echo "CloudFrontキャッシュを無効化します: ${DISTRIBUTION_ID}"
             aws cloudfront create-invalidation --distribution-id ${DISTRIBUTION_ID} --paths "/*"
