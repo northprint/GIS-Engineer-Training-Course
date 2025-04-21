@@ -117,7 +117,7 @@ jobs:
       - name: CDKスタックのデプロイ
         run: |
           cd get-satellite-image/cdk
-          npx cdk deploy ${{ env.STACK_NAME }} --require-approval never
+          npx cdk deploy ${{ env.STACK_NAME }} --require-approval never --no-version-reporting --no-bootstrap
 
       - name: デプロイ結果の取得
         id: outputs
