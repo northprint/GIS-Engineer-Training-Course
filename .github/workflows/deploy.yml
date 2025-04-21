@@ -118,8 +118,18 @@ jobs:
         run: |
           # テンプレート保存用のS3バケットを作成
           ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-          TEMPLATE_BUCKET="cf-templates-${{ env.STACK_NAME }}-${{ env.AWS_REGION }}-${ACCOUNT_ID}"
-          aws s3 mb s3://${TEMPLATE_BUCKET} --region ${{ env.AWS_REGION }} || true
+          # バケット名は小文字で、ハイフンのみ使用可能
+          TEMPLATE_BUCKET="cf-templates-$(echo ${{ env.STACK_NAME }} | tr '[:upper:]' '[:lower:]')-${{ env.AWS_REGION }}-${ACCOUNT_ID}"
+          
+          # バケットが存在するか確認
+          if ! aws s3 ls s3://${TEMPLATE_BUCKET} 2>/dev/null; then
+            echo "Creating S3 bucket: ${TEMPLATE_BUCKET}"
+            aws s3 mb s3://${TEMPLATE_BUCKET} --region ${{ env.AWS_REGION }}
+          else
+            echo "S3 bucket already exists: ${TEMPLATE_BUCKET}"
+          fi
+          
+          # バケット名を環境変数に設定
           echo "TEMPLATE_BUCKET=${TEMPLATE_BUCKET}" >> $GITHUB_ENV
       
       - name: CDKスタックの合成とデプロイ
