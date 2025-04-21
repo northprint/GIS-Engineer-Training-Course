@@ -114,10 +114,19 @@ jobs:
           cd get-satellite-image/cdk
           npm ci
 
-      - name: CDKスタックのデプロイ
+      - name: CDKテンプレートの合成
         run: |
           cd get-satellite-image/cdk
-          npx cdk deploy ${{ env.STACK_NAME }} --require-approval never --no-version-reporting --no-bootstrap
+          npx cdk synth ${{ env.STACK_NAME }} > template.yaml
+          
+      - name: CloudFormationスタックのデプロイ
+        run: |
+          cd get-satellite-image/cdk
+          aws cloudformation deploy \
+            --template-file template.yaml \
+            --stack-name ${{ env.STACK_NAME }} \
+            --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND \
+            --no-fail-on-empty-changeset
 
       - name: デプロイ結果の取得
         id: outputs
