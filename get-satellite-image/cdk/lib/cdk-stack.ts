@@ -1,6 +1,7 @@
 import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
+import { Platform } from 'aws-cdk-lib/aws-ecr-assets';
 import * as apigateway from 'aws-cdk-lib/aws-apigateway';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as s3deploy from 'aws-cdk-lib/aws-s3-deployment';
@@ -190,7 +191,7 @@ def handler(event, context):
 
     const apiFunction = new lambda.DockerImageFunction(this, 'SatelliteImageApiFunction', {
       code: lambda.DockerImageCode.fromImageAsset('../api', {
-        platform: 'linux/amd64',
+        platform: Platform.LINUX_AMD64,
       }),
       memorySize: 1024,
       timeout: Duration.seconds(30),
