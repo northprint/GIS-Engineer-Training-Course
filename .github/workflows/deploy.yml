@@ -117,7 +117,11 @@ jobs:
       - name: CDKテンプレートの合成
         run: |
           cd get-satellite-image/cdk
-          npx cdk synth ${{ env.STACK_NAME }} > template.yaml
+          # 通知メッセージを除外するために--quietオプションを追加
+          npx cdk synth ${{ env.STACK_NAME }} --quiet > template.yaml
+          # テンプレートが正しいYAML形式かチェック
+          cat template.yaml | grep -v "NOTICES" | grep -v "cli" > template-clean.yaml
+          mv template-clean.yaml template.yaml
           
       - name: CloudFormationスタックのデプロイ
         run: |
