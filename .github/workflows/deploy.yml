@@ -225,8 +225,21 @@ jobs:
           echo "S3バケットの物理IDを取得します"
           # CloudFormationスタックのリソース一覧を取得
           aws cloudformation list-stack-resources --stack-name ${{ env.STACK_NAME }} > stack-resources.json
-          # SatelliteImageUiBucketの物理IDを抽出
-          S3_BUCKET=$(cat stack-resources.json | jq -r '.StackResourceSummaries[] | select(.LogicalResourceId=="SatelliteImageUiBucket") | .PhysicalResourceId')
+          cat stack-resources.json
+          
+          # すべてのリソースを表示して確認
+          echo "\nすべてのリソース一覧:"
+          cat stack-resources.json | jq -r '.StackResourceSummaries[] | "\(.LogicalResourceId): \(.PhysicalResourceId)"'
+          
+          # S3バケットを探す方法を変更
+          S3_BUCKET=$(cat stack-resources.json | jq -r '.StackResourceSummaries[] | select(.ResourceType=="AWS::S3::Bucket") | .PhysicalResourceId')
+          
+          # もし取得できない場合は、論理IDでも試す
+          if [ -z "${S3_BUCKET}" ] || [ "${S3_BUCKET}" = "null" ]; then
+            echo "ResourceTypeで取得できなかったため、論理IDで試します"
+            S3_BUCKET=$(cat stack-resources.json | jq -r '.StackResourceSummaries[] | select(.LogicalResourceId=="SatelliteImageUiBucket") | .PhysicalResourceId')
+          fi
+          
           echo "S3バケット名: ${S3_BUCKET}"
           echo "S3_BUCKET=${S3_BUCKET}" >> $GITHUB_ENV
       
@@ -235,15 +248,28 @@ jobs:
           echo "UIファイルをS3バケットにアップロードします: ${S3_BUCKET}"
           
           # S3バケット名が取得できているか確認
-          if [ -z "${S3_BUCKET}" ] || [ "${S3_BUCKET}" = "None" ]; then
+          if [ -z "${S3_BUCKET}" ] || [ "${S3_BUCKET}" = "None" ] || [ "${S3_BUCKET}" = "null" ]; then
             echo "S3バケット名が取得できていません。CloudFormationスタックから手動で取得します。"
             # スタックリソースを再取得
             aws cloudformation list-stack-resources --stack-name ${{ env.STACK_NAME }} > stack-resources.json
-            S3_BUCKET=$(cat stack-resources.json | jq -r '.StackResourceSummaries[] | select(.LogicalResourceId=="SatelliteImageUiBucket") | .PhysicalResourceId')
+            
+            # すべてのリソースを表示して確認
+            echo "\nすべてのリソース一覧:"
+            cat stack-resources.json | jq -r '.StackResourceSummaries[] | "\(.LogicalResourceId): \(.PhysicalResourceId)"'
+            
+            # まずResourceTypeで探す
+            S3_BUCKET=$(cat stack-resources.json | jq -r '.StackResourceSummaries[] | select(.ResourceType=="AWS::S3::Bucket") | .PhysicalResourceId')
+            
+            # もし取得できない場合は、論理IDでも試す
+            if [ -z "${S3_BUCKET}" ] || [ "${S3_BUCKET}" = "null" ]; then
+              echo "ResourceTypeで取得できなかったため、論理IDで試します"
+              S3_BUCKET=$(cat stack-resources.json | jq -r '.StackResourceSummaries[] | select(.LogicalResourceId=="SatelliteImageUiBucket") | .PhysicalResourceId')
+            fi
+            
             echo "再取得したS3バケット名: ${S3_BUCKET}"
             
             # まだ取得できない場合はエラー
-            if [ -z "${S3_BUCKET}" ] || [ "${S3_BUCKET}" = "None" ]; then
+            if [ -z "${S3_BUCKET}" ] || [ "${S3_BUCKET}" = "None" ] || [ "${S3_BUCKET}" = "null" ]; then
               echo "ERROR: S3バケット名を取得できませんでした。UIファイルのアップロードをスキップします。"
               exit 0
             fi
