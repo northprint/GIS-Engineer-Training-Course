@@ -117,17 +117,14 @@ jobs:
       - name: CDKテンプレートの合成
         run: |
           cd get-satellite-image/cdk
-          # 通知メッセージを除外するために--quietオプションを追加
-          npx cdk synth ${{ env.STACK_NAME }} --quiet > template.yaml
-          # テンプレートが正しいYAML形式かチェック
-          cat template.yaml | grep -v "NOTICES" | grep -v "cli" > template-clean.yaml
-          mv template-clean.yaml template.yaml
+          # JSONフォーマットでテンプレートを生成
+          npx cdk synth ${{ env.STACK_NAME }} --quiet --json > template.json
           
       - name: CloudFormationスタックのデプロイ
         run: |
           cd get-satellite-image/cdk
           aws cloudformation deploy \
-            --template-file template.yaml \
+            --template-file template.json \
             --stack-name ${{ env.STACK_NAME }} \
             --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND \
             --no-fail-on-empty-changeset
