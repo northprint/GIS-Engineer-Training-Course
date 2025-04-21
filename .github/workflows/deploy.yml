@@ -30,9 +30,30 @@ jobs:
           cd get-satellite-image/ui
           npm ci
 
+      - name: APIエンドポイントの取得
+        id: api-endpoint
+        run: |
+          # スタックが存在する場合は、APIエンドポイントを取得
+          API_ENDPOINT=$(aws cloudformation describe-stacks --stack-name ${{ env.STACK_NAME }} --query "Stacks[0].Outputs[?OutputKey=='ApiEndpoint'].OutputValue" --output text 2>/dev/null || echo "http://localhost:3000")
+          
+          # APIエンドポイントが取得できない場合はデフォルト値を使用
+          if [ -z "$API_ENDPOINT" ] || [ "$API_ENDPOINT" = "None" ]; then
+            API_ENDPOINT="http://localhost:3000"
+          fi
+          
+          echo "APIエンドポイント: $API_ENDPOINT"
+          echo "API_ENDPOINT=$API_ENDPOINT" >> $GITHUB_ENV
+          echo "api_endpoint=$API_ENDPOINT" >> $GITHUB_OUTPUT
+      
       - name: UIのビルド
         run: |
           cd get-satellite-image/ui
+          
+          # APIエンドポイントを環境変数ファイルに設定
+          echo "VITE_API_HOST=${{ env.API_ENDPOINT }}" > .env
+          cat .env
+          
+          # ビルド実行
           npm run build
 
       - name: UIビルド成果物のアップロード

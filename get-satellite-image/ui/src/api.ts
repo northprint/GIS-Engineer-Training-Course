@@ -1,4 +1,5 @@
-const API_HOST = "http://localhost:3000"; // 環境変数から注入するとなお良い
+// 環境変数からAPIのURLを取得（デフォルトはローカル開発用）
+const API_HOST = import.meta.env.VITE_API_HOST || "http://localhost:3000";
 
 const createPoint = async (data: { longitude: number; latitude: number }) => {
   const response = await fetch(`${API_HOST}/points`, {
