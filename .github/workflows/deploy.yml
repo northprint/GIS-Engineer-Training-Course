@@ -95,6 +95,13 @@ jobs:
         with:
           name: postgis-extension-lambda
           path: get-satellite-image/lambda
+          
+      - name: Lambdaパッケージの展開
+        run: |
+          # ダウンロードしたzipファイルを展開してpostgis-extensionディレクトリに配置
+          mkdir -p get-satellite-image/lambda/postgis-extension
+          unzip -o get-satellite-image/lambda/postgis-extension.zip -d get-satellite-image/lambda/postgis-extension
+          ls -la get-satellite-image/lambda/postgis-extension
 
       - name: Node.jsのセットアップ
         uses: actions/setup-node@v4
@@ -160,9 +167,23 @@ jobs:
           API_ENDPOINT=$(aws cloudformation describe-stacks --stack-name ${{ env.STACK_NAME }} --query "Stacks[0].Outputs[?OutputKey=='ApiEndpoint'].OutputValue" --output text)
           UI_ENDPOINT=$(aws cloudformation describe-stacks --stack-name ${{ env.STACK_NAME }} --query "Stacks[0].Outputs[?OutputKey=='UiEndpoint'].OutputValue" --output text)
           DB_ENDPOINT=$(aws cloudformation describe-stacks --stack-name ${{ env.STACK_NAME }} --query "Stacks[0].Outputs[?OutputKey=='DatabaseEndpoint'].OutputValue" --output text)
+          S3_BUCKET=$(aws cloudformation describe-stacks --stack-name ${{ env.STACK_NAME }} --query "Stacks[0].Resources[?LogicalResourceId=='SatelliteImageUiBucket'].PhysicalResourceId" --output text)
           echo "API_ENDPOINT=${API_ENDPOINT}" >> $GITHUB_ENV
           echo "UI_ENDPOINT=${UI_ENDPOINT}" >> $GITHUB_ENV
           echo "DB_ENDPOINT=${DB_ENDPOINT}" >> $GITHUB_ENV
+          echo "S3_BUCKET=${S3_BUCKET}" >> $GITHUB_ENV
+      
+      - name: UIファイルをS3にアップロード
+        run: |
+          echo "UIファイルをS3バケットにアップロードします: ${S3_BUCKET}"
+          aws s3 sync get-satellite-image/ui/dist s3://${S3_BUCKET} --delete
+          
+          # CloudFrontキャッシュを無効化
+          DISTRIBUTION_ID=$(aws cloudformation describe-stacks --stack-name ${{ env.STACK_NAME }} --query "Stacks[0].Resources[?LogicalResourceId=='SatelliteImageDistribution'].PhysicalResourceId" --output text)
+          if [ ! -z "${DISTRIBUTION_ID}" ]; then
+            echo "CloudFrontキャッシュを無効化します: ${DISTRIBUTION_ID}"
+            aws cloudfront create-invalidation --distribution-id ${DISTRIBUTION_ID} --paths "/*"
+          fi
 
       - name: デプロイ結果の出力
         run: |
