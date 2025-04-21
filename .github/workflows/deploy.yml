@@ -114,28 +114,26 @@ jobs:
           cd get-satellite-image/cdk
           npm ci
 
-      - name: AWS CLIでCDKブートストラップのセットアップ
-        run: |
-          # 必要なIAMポリシーを作成
-          aws iam create-role --role-name CDKBootstrapRole --assume-role-policy-document '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Service":"cloudformation.amazonaws.com"},"Action":"sts:AssumeRole"}]}' || true
-          aws iam attach-role-policy --role-name CDKBootstrapRole --policy-arn arn:aws:iam::aws:policy/AdministratorAccess || true
-          
-          # S3バケットを作成
-          aws s3 mb s3://cdk-bootstrap-${{ env.AWS_REGION }}-$(aws sts get-caller-identity --query Account --output text) || true
-          
-      - name: CDKスタックのデプロイ
+      - name: CDKスタックの合成とデプロイ
         run: |
           cd get-satellite-image/cdk
-          # デプロイ前に環境変数を設定して通知を無効化
-          export JSII_SILENCE_WARNING_DEPRECATED_NODE_VERSION=1
-          export CDK_DISABLE_VERSION_CHECK=1
           
-          # デプロイの実行
-          npx cdk deploy ${{ env.STACK_NAME }} \
-            --require-approval never \
-            --verbose \
-            --toolkit-stack-name CDKToolkit \
-            --force
+          # CDKの設定ファイルを作成してブートストラップチェックをスキップ
+          mkdir -p ~/.cdk
+          echo '{"version":"1.0.0","bootstrapStackVersionSsmParameter":"","requireApproval":"never"}' > ~/.cdk/config.json
+          
+          # CloudFormationテンプレートを生成
+          npx cdk synth ${{ env.STACK_NAME }} --no-version-reporting > template.yaml
+          
+          # 通知メッセージを除外
+          sed -i '/NOTICES/,/cdk acknowledge/d' template.yaml
+          
+          # CloudFormationスタックをデプロイ
+          aws cloudformation deploy \
+            --template-file template.yaml \
+            --stack-name ${{ env.STACK_NAME }} \
+            --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND \
+            --no-fail-on-empty-changeset
 
       - name: デプロイ結果の取得
         id: outputs
