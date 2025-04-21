@@ -23,16 +23,16 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
-          cache-dependency-path: './get-satellite-image/ui/package-lock.json'
+          cache-dependency-path: './ui/package-lock.json'
 
       - name: UI依存関係のインストール
         run: |
-          cd get-satellite-image/ui
+          cd ui
           npm ci
 
       - name: UIのビルド
         run: |
-          cd get-satellite-image/ui
+          cd ui
           npm run build
 
       - name: UIビルド成果物のアップロード
@@ -57,19 +57,19 @@ jobs:
 
       - name: 依存関係のインストール
         run: |
-          cd get-satellite-image/lambda/postgis-extension
+          cd lambda/postgis-extension
           pip install -r requirements.txt -t .
 
       - name: Lambdaデプロイパッケージの作成
         run: |
-          cd get-satellite-image/lambda/postgis-extension
+          cd lambda/postgis-extension
           zip -r ../postgis-extension.zip .
 
       - name: Lambdaパッケージのアップロード
         uses: actions/upload-artifact@v4
         with:
           name: postgis-extension-lambda
-          path: get-satellite-image/lambda/postgis-extension.zip
+          path: lambda/postgis-extension.zip
           retention-days: 1
 
   deploy-cdk:
@@ -98,30 +98,55 @@ jobs:
           
       - name: Lambdaパッケージの展開と確認
         run: |
-          # ダウンロードしたzipファイルを展開してpostgis-extensionディレクトリに配置
+          # postgis-extensionディレクトリが存在するか確認し、なければ作成
           echo "Lambdaパッケージの展開を開始します"
-          mkdir -p get-satellite-image/lambda/postgis-extension
-          unzip -o get-satellite-image/lambda/postgis-extension.zip -d get-satellite-image/lambda/postgis-extension
+          LAMBDA_DIR="lambda/postgis-extension"
           
-          # ファイルが正しく展開されたか確認
-          echo "Lambdaディレクトリの内容:"
-          ls -la get-satellite-image/lambda/
-          echo "Lambdaパッケージの内容:"
-          ls -la get-satellite-image/lambda/postgis-extension/
-          
-          # 必要なファイルがあるか確認
-          if [ ! -f get-satellite-image/lambda/postgis-extension/index.py ]; then
-            echo "ERROR: index.pyが見つかりません"
-            # 必要なファイルがない場合は、リポジトリから直接コピー
-            cp -r get-satellite-image/lambda/postgis-extension-orig/* get-satellite-image/lambda/postgis-extension/ 2>/dev/null || true
+          if [ ! -d "$LAMBDA_DIR" ]; then
+            echo "$LAMBDA_DIR ディレクトリが存在しないため作成します"
+            mkdir -p "$LAMBDA_DIR"
           fi
+          
+          # zipファイルが存在する場合は展開
+          if [ -f lambda/postgis-extension.zip ]; then
+            echo "zipファイルを展開します"
+            unzip -o lambda/postgis-extension.zip -d "$LAMBDA_DIR"
+          else
+            echo "警告: postgis-extension.zipが見つかりません"
+            # 代わりにリポジトリのファイルをコピー
+            echo "リポジトリのファイルをコピーします"
+            cp -r lambda/postgis-extension/* "$LAMBDA_DIR/"
+          fi
+          
+          # ディレクトリ内容の確認
+          echo "Lambdaディレクトリの内容:"
+          ls -la lambda/
+          echo "Lambdaパッケージの内容:"
+          ls -la "$LAMBDA_DIR" || echo "ディレクトリは空か存在しません"
+
+      - name: Lambda関数コードの準備
+        run: |
+          cd get-satellite-image/cdk
+          
+          # postgis-extensionディレクトリが存在するか確認
+          if [ ! -d "postgis-extension" ]; then
+            mkdir -p postgis-extension
+          fi
+          
+          # リポジトリからLambda関数のコードをコピー
+          echo "Lambda関数のコードをコピーします"
+          cp -r ../../lambda/postgis-extension/* postgis-extension/
+          
+          # ファイルの存在確認
+          echo "コピーしたファイルの確認:"
+          ls -la postgis-extension/
 
       - name: Node.jsのセットアップ
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
-          cache-dependency-path: './get-satellite-image/cdk/package-lock.json'
+          cache-dependency-path: './cdk/package-lock.json'
 
       - name: AWS認証の設定
         uses: aws-actions/configure-aws-credentials@v4
@@ -131,33 +156,9 @@ jobs:
 
       - name: CDK依存関係のインストール
         run: |
-          cd get-satellite-image/cdk
+          cd cdk
           npm ci
 
-      - name: LambdaパッケージのS3アップロード
-        run: |
-          # LambdaパッケージをS3に直接アップロード
-          ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-          LAMBDA_BUCKET="lambda-packages-${{ env.AWS_REGION }}-${ACCOUNT_ID}"
-          
-          # S3バケットが存在するか確認
-          if ! aws s3 ls s3://${LAMBDA_BUCKET} 2>/dev/null; then
-            echo "Creating Lambda S3 bucket: ${LAMBDA_BUCKET}"
-            aws s3 mb s3://${LAMBDA_BUCKET} --region ${{ env.AWS_REGION }}
-          else
-            echo "Lambda S3 bucket already exists: ${LAMBDA_BUCKET}"
-          fi
-          
-          # Lambdaパッケージをアップロード
-          echo "Uploading Lambda package to S3"
-          cd get-satellite-image/lambda/postgis-extension
-          zip -r ../postgis-extension-deploy.zip .
-          aws s3 cp ../postgis-extension-deploy.zip s3://${LAMBDA_BUCKET}/postgis-extension.zip
-          
-          # 環境変数に設定
-          echo "LAMBDA_BUCKET=${LAMBDA_BUCKET}" >> $GITHUB_ENV
-          echo "LAMBDA_KEY=postgis-extension.zip" >> $GITHUB_ENV
-      
       - name: S3バケットの作成
         run: |
           # テンプレート保存用のS3バケットを作成
@@ -180,17 +181,10 @@ jobs:
         id: deploy
         continue-on-error: true
         run: |
-          # Lambdaコードの参照先を一時的に修正
-          cd get-satellite-image/cdk
+          cd cdk
           
-          # cdk-stack.tsを修正してS3からLambdaコードを読み込むようにする
-          if grep -q "lambda.Code.fromAsset('../lambda/postgis-extension'" lib/cdk-stack.ts; then
-            sed -i "s|lambda.Code.fromAsset('../lambda/postgis-extension'.*)|lambda.Code.fromBucket(s3.Bucket.fromBucketName(this, 'LambdaCodeBucket', '${LAMBDA_BUCKET}'), '${LAMBDA_KEY}')|g" lib/cdk-stack.ts
-            echo "Modified cdk-stack.ts to use S3 bucket for Lambda code"
-            grep -A 2 "Lambda.Code.from" lib/cdk-stack.ts
-          fi
-          
-          cd get-satellite-image/cdk
+          # Lambda関数のコードをアセットとして使用するように設定を確認
+          echo "CDKスタックの設定を確認します"
           
           # CDKの設定ファイルを作成してブートストラップチェックをスキップ
           mkdir -p ~/.cdk
@@ -255,7 +249,7 @@ jobs:
           fi
           
           # UIファイルをS3にアップロード
-          aws s3 sync get-satellite-image/ui/dist s3://${S3_BUCKET} --delete
+          aws s3 sync ui/dist s3://${S3_BUCKET} --delete
           
           # CloudFrontキャッシュを無効化
           DISTRIBUTION_ID=$(aws cloudformation list-stack-resources --stack-name ${{ env.STACK_NAME }} | jq -r '.StackResourceSummaries[] | select(.LogicalResourceId=="SatelliteImageDistribution") | .PhysicalResourceId')
