@@ -183,6 +183,9 @@ jobs:
           echo "S3バケット名: ${S3_BUCKET}"
           echo "S3_BUCKET=${S3_BUCKET}" >> $GITHUB_ENV
       
+      - name: pnpmのインストール
+        run: npm install -g pnpm
+
       - name: UIファイルをS3にアップロード
         run: |
           # UIビルド（pnpm install & build）
