@@ -30,6 +30,7 @@ const map = new Map({
         source: "osm",
       },
     ],
+    zoom: 12,
   },
 });
 
@@ -42,7 +43,7 @@ const createPopupDom = async (id: string) => {
   popupDom.style.display = "flex";
   popupDom.style.flexDirection = "column";
   popupDom.style.alignItems = "center";
-  
+
   // ローディング表示用の要素
   const loadingDiv = document.createElement("div");
   loadingDiv.style.display = "flex";
@@ -54,33 +55,33 @@ const createPopupDom = async (id: string) => {
   loadingDiv.style.color = "#666";
   loadingDiv.style.fontWeight = "bold";
   loadingDiv.textContent = "衛星画像を読み込み中...";
-  
+
   // 画像を表示する要素
   const anchor = document.createElement("a");
   anchor.href = await satelliteImageUrl(id, 1024);
   anchor.style.display = "none"; // 最初は非表示
-  
+
   // 画像要素
   const img = document.createElement("img");
   img.width = 256;
   img.height = 256;
   img.alt = "衛星画像";
   img.src = await satelliteImageUrl(id);
-  
+
   // 画像の読み込みが完了したらローディング表示を非表示にして画像を表示
   img.onload = () => {
     loadingDiv.style.display = "none";
     anchor.style.display = "block";
   };
-  
+
   // 画像の読み込みに失敗した場合
   img.onerror = () => {
     loadingDiv.textContent = "画像の読み込みに失敗しました";
     loadingDiv.style.backgroundColor = "#ffeeee";
   };
-  
+
   anchor.appendChild(img);
-  
+
   // 削除ボタン
   const buttonDom = document.createElement("button");
   buttonDom.textContent = "削除";
@@ -92,7 +93,7 @@ const createPopupDom = async (id: string) => {
     clearMarkers();
     await loadMarkers();
   };
-  
+
   popupDom.appendChild(loadingDiv);
   popupDom.appendChild(anchor);
   popupDom.appendChild(buttonDom);
