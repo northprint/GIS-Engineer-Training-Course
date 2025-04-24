@@ -189,18 +189,17 @@ jobs:
       - name: UIファイルをS3にアップロード
         run: |
           # UIビルド（pnpm install & build）
-          cd get-satellite-image/ui
-          pnpm install
-          pnpm build
+          pnpm install --dir get-satellite-image/ui
+          pnpm build --dir get-satellite-image/ui
           # config.json生成
-          echo "{\n  \"apiEndpoint\": \"${API_ENDPOINT}\"\n}" > dist/config.json
-          cat dist/config.json
+          echo "{\n  \"apiEndpoint\": \"${API_ENDPOINT}\"\n}" > get-satellite-image/ui/dist/config.json
+          cat get-satellite-image/ui/dist/config.json
 
           echo "distディレクトリの中身確認:"
-          ls -l dist
+          ls -l get-satellite-image/ui/dist
 
           echo "UIファイルをS3バケットにアップロードします: ${S3_BUCKET}"
-          aws s3 sync dist s3://${S3_BUCKET} --delete
+          aws s3 sync get-satellite-image/ui/dist s3://${S3_BUCKET} --delete
           
           # S3バケット名が取得できているか確認
           if [ -z "${S3_BUCKET}" ] || [ "${S3_BUCKET}" = "None" ] || [ "${S3_BUCKET}" = "null" ]; then
