@@ -201,6 +201,7 @@ jobs:
 
           echo "UIファイルをS3バケットにアップロードします: ${S3_BUCKET}"
           aws s3 sync dist s3://${S3_BUCKET} --delete
+          cd ../../..
           
           # S3バケット名が取得できているか確認
           if [ -z "${S3_BUCKET}" ] || [ "${S3_BUCKET}" = "None" ] || [ "${S3_BUCKET}" = "null" ]; then
