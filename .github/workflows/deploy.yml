@@ -11,9 +11,10 @@ env:
   STACK_NAME: CdkStack
 
 jobs:
-  build-ui:
-    name: UIのビルド
+  build-and-upload-ui:
+    name: UIビルド＆アップロード
     runs-on: ubuntu-latest
+    needs: deploy-cdk
     steps:
       - name: リポジトリのチェックアウト
         uses: actions/checkout@v4
@@ -30,38 +31,26 @@ jobs:
           cd get-satellite-image/ui
           npm ci
 
-      - name: APIエンドポイントの取得
-        id: api-endpoint
+      - name: APIエンドポイントを.envに書き込む
         run: |
-          # スタックが存在する場合は、APIエンドポイントを取得
-          API_ENDPOINT=$(aws cloudformation describe-stacks --stack-name ${{ env.STACK_NAME }} --query "Stacks[0].Outputs[?OutputKey=='ApiEndpoint'].OutputValue" --output text 2>/dev/null || echo "http://localhost:3000")
-          
-          # APIエンドポイントが取得できない場合はデフォルト値を使用
-          if [ -z "$API_ENDPOINT" ] || [ "$API_ENDPOINT" = "None" ]; then
-            API_ENDPOINT="http://localhost:3000"
-          fi
-          
-          echo "APIエンドポイント: $API_ENDPOINT"
-          echo "API_ENDPOINT=$API_ENDPOINT" >> $GITHUB_ENV
-          echo "api_endpoint=$API_ENDPOINT" >> $GITHUB_OUTPUT
-      
+          cd get-satellite-image/ui
+          echo "VITE_API_HOST=${{ env.API_ENDPOINT }}" > .env
+          cat .env
+
       - name: UIのビルド
         run: |
           cd get-satellite-image/ui
-          
-          # APIエンドポイントを環境変数ファイルに設定
-          echo "VITE_API_HOST=${{ env.API_ENDPOINT }}" > .env
-          cat .env
-          
-          # ビルド実行
           npm run build
 
-      - name: UIビルド成果物のアップロード
-        uses: actions/upload-artifact@v4
-        with:
-          name: ui-build
-          path: get-satellite-image/ui/dist
-          retention-days: 1
+      - name: UIファイルをS3にアップロード
+        run: |
+          aws s3 sync get-satellite-image/ui/dist s3://${S3_BUCKET} --delete
+
+      - name: CloudFrontキャッシュを無効化
+        run: |
+          if [ ! -z "${DISTRIBUTION_ID}" ]; then
+            aws cloudfront create-invalidation --distribution-id ${DISTRIBUTION_ID} --paths "/*"
+          fi
 
   deploy-lambda-postgis:
     name: PostGIS拡張用Lambdaのデプロイ
@@ -97,7 +86,7 @@ jobs:
   deploy-cdk:
     name: CDKデプロイ
     runs-on: ubuntu-latest
-    needs: [build-ui, deploy-lambda-postgis]
+    needs: deploy-lambda-postgis
     permissions:
       id-token: write  # OIDCトークン取得のために必要
       contents: read
@@ -106,61 +95,31 @@ jobs:
       - name: リポジトリのチェックアウト
         uses: actions/checkout@v4
 
-      - name: UIビルド成果物のダウンロード
-        uses: actions/download-artifact@v4
-        with:
-          name: ui-build
-          path: get-satellite-image/ui/dist
-
       - name: PostGIS Lambdaパッケージのダウンロード
         uses: actions/download-artifact@v4
         with:
           name: postgis-extension-lambda
           path: get-satellite-image/lambda
-          
+
       - name: Lambdaパッケージの展開と確認
         run: |
-          # postgis-extensionディレクトリが存在するか確認し、なければ作成
-          echo "Lambdaパッケージの展開を開始します"
           LAMBDA_DIR="get-satellite-image/lambda/postgis-extension"
-          
           if [ ! -d "$LAMBDA_DIR" ]; then
-            echo "$LAMBDA_DIR ディレクトリが存在しないため作成します"
             mkdir -p "$LAMBDA_DIR"
           fi
-          
-          # zipファイルが存在する場合は展開
           if [ -f get-satellite-image/lambda/postgis-extension.zip ]; then
-            echo "zipファイルを展開します"
             unzip -o get-satellite-image/lambda/postgis-extension.zip -d "$LAMBDA_DIR"
-          else
-            echo "警告: postgis-extension.zipが見つかりません"
-            # 代わりにリポジトリのファイルをコピー
-            echo "リポジトリのファイルをコピーします"
-            echo "警告: postgis-extension.zipが見つかりませんでしたが、必要なファイルはすでに存在しているはずです"
           fi
-          
-          # ディレクトリ内容の確認
-          echo "Lambdaディレクトリの内容:"
           ls -la get-satellite-image/lambda/
-          echo "Lambdaパッケージの内容:"
           ls -la "$LAMBDA_DIR" || echo "ディレクトリは空か存在しません"
 
       - name: Lambda関数コードの準備
         run: |
           cd get-satellite-image/cdk
-          
-          # postgis-extensionディレクトリが存在するか確認
           if [ ! -d "postgis-extension" ]; then
             mkdir -p postgis-extension
           fi
-          
-          # リポジトリからLambda関数のコードをコピー
-          echo "Lambda関数のコードをコピーします"
           cp -r ../lambda/postgis-extension/* postgis-extension/ 2>/dev/null || true
-          
-          # ファイルの存在確認
-          echo "コピーしたファイルの確認:"
           ls -la postgis-extension/
 
       - name: Node.jsのセットアップ
@@ -173,7 +132,7 @@ jobs:
       - name: AWS認証の設定
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}  # GitHubActionsからAWSリソースにアクセスするためのロール
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
       - name: CDK依存関係のインストール
@@ -183,53 +142,32 @@ jobs:
 
       - name: S3バケットの作成
         run: |
-          # テンプレート保存用のS3バケットを作成
           ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-          # バケット名は小文字で、ハイフンのみ使用可能
           TEMPLATE_BUCKET="cf-templates-$(echo ${{ env.STACK_NAME }} | tr '[:upper:]' '[:lower:]')-${{ env.AWS_REGION }}-${ACCOUNT_ID}"
-          
-          # バケットが存在するか確認
           if ! aws s3 ls s3://${TEMPLATE_BUCKET} 2>/dev/null; then
-            echo "Creating S3 bucket: ${TEMPLATE_BUCKET}"
             aws s3 mb s3://${TEMPLATE_BUCKET} --region ${{ env.AWS_REGION }}
-          else
-            echo "S3 bucket already exists: ${TEMPLATE_BUCKET}"
           fi
-          
-          # バケット名を環境変数に設定
           echo "TEMPLATE_BUCKET=${TEMPLATE_BUCKET}" >> $GITHUB_ENV
-      
+
       - name: CDKスタックの合成とデプロイ
         id: deploy
         continue-on-error: true
         run: |
           cd get-satellite-image/cdk
-          
-          # Lambda関数のコードをアセットとして使用するように設定を確認
-          echo "CDKスタックの設定を確認します"
-          
-          # CDKの設定ファイルを作成してブートストラップチェックをスキップ
           mkdir -p ~/.cdk
           echo '{"version":"1.0.0","bootstrapStackVersionSsmParameter":"","requireApproval":"never"}' > ~/.cdk/config.json
-          
-          # CloudFormationテンプレートを生成
           npx cdk synth ${{ env.STACK_NAME }} --no-version-reporting > template.yaml
-          
-          # 通知メッセージを除外
           sed -i '/NOTICES/,/cdk acknowledge/d' template.yaml
-          
-          # CloudFormationスタックをデプロイ
           aws cloudformation deploy \
             --template-file template.yaml \
             --stack-name ${{ env.STACK_NAME }} \
             --s3-bucket ${TEMPLATE_BUCKET} \
             --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND \
             --no-fail-on-empty-changeset
-      
+
       - name: スタックイベントの取得と表示
         if: steps.deploy.outcome == 'failure'
         run: |
-          echo "スタックデプロイが失敗しました。イベントを確認します。"
           aws cloudformation describe-stack-events --stack-name ${{ env.STACK_NAME }} --query "StackEvents[?ResourceStatus=='CREATE_FAILED' || ResourceStatus=='UPDATE_FAILED'].{Status:ResourceStatus,Reason:ResourceStatusReason,LogicalId:LogicalResourceId,Timestamp:Timestamp}" --output table
 
       - name: デプロイ結果の取得
@@ -241,25 +179,9 @@ jobs:
           echo "API_ENDPOINT=${API_ENDPOINT}" >> $GITHUB_ENV
           echo "UI_ENDPOINT=${UI_ENDPOINT}" >> $GITHUB_ENV
           echo "DB_ENDPOINT=${DB_ENDPOINT}" >> $GITHUB_ENV
-          
-          # S3バケットの物理IDを取得
-          echo "S3バケットの物理IDを取得します"
-          # CloudFormationスタックのリソース一覧を取得
           aws cloudformation list-stack-resources --stack-name ${{ env.STACK_NAME }} > stack-resources.json
-          cat stack-resources.json
-          
-          # すべてのリソースを表示して確認
-          echo "\nすべてのリソース一覧:"
-          cat stack-resources.json | jq -r '.StackResourceSummaries[] | "\(.LogicalResourceId): \(.PhysicalResourceId)"'
-          
-          # S3バケットを探す方法を変更
           S3_BUCKET=$(cat stack-resources.json | jq -r '.StackResourceSummaries[] | select(.ResourceType=="AWS::S3::Bucket") | .PhysicalResourceId')
-          
-          # もし取得できない場合は、論理IDでも試す
-          if [ -z "${S3_BUCKET}" ] || [ "${S3_BUCKET}" = "null" ]; then
-            echo "ResourceTypeで取得できなかったため、論理IDで試します"
-            S3_BUCKET=$(cat stack-resources.json | jq -r '.StackResourceSummaries[] | select(.LogicalResourceId=="SatelliteImageUiBucket") | .PhysicalResourceId')
-          fi
+          DISTRIBUTION_ID=$(cat stack-resources.json | jq -r '.StackResourceSummaries[] | select(.LogicalResourceId=="SatelliteImageDistribution") | .PhysicalResourceId')
           
           echo "S3バケット名: ${S3_BUCKET}"
           echo "S3_BUCKET=${S3_BUCKET}" >> $GITHUB_ENV
