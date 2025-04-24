@@ -229,10 +229,12 @@ jobs:
               echo "ERROR: S3バケット名を取得できませんでした。UIファイルのアップロードをスキップします。"
               exit 0
             fi
+
+            # バケット名が再取得できた場合のみ再アップロード
+            cd get-satellite-image/ui
+            aws s3 sync dist s3://${S3_BUCKET} --delete
+            cd ../../..
           fi
-          
-          # UIファイルをS3にアップロード
-          aws s3 sync get-satellite-image/ui/dist s3://${S3_BUCKET} --delete
           
           # CloudFrontキャッシュを無効化
           DISTRIBUTION_ID=$(aws cloudformation list-stack-resources --stack-name ${{ env.STACK_NAME }} | jq -r '.StackResourceSummaries[] | select(.LogicalResourceId=="SatelliteImageDistribution") | .PhysicalResourceId')
