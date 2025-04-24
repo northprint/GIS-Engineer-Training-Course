@@ -193,6 +193,12 @@ jobs:
       
       - name: UIファイルをS3にアップロード
         run: |
+          # UIビルド（pnpm install & build）
+          cd get-satellite-image/ui
+          pnpm install
+          pnpm build
+          cd ../../..
+
           echo "UIファイルをS3バケットにアップロードします: ${S3_BUCKET}"
           
           # S3バケット名が取得できているか確認
