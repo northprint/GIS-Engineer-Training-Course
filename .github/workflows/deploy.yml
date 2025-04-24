@@ -42,7 +42,12 @@ jobs:
           cd get-satellite-image/ui
           npm run build
 
-      - name: UIファイルをS3にアップロード
+      - name: config.jsonの自動生成
+        run: |
+          echo "{\n  \"apiEndpoint\": \"${API_ENDPOINT}\"\n}" > get-satellite-image/ui/dist/config.json
+          cat get-satellite-image/ui/dist/config.json
+
+      - name: UIファイルとconfig.jsonをS3にアップロード
         run: |
           aws s3 sync get-satellite-image/ui/dist s3://${S3_BUCKET} --delete
 
