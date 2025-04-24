@@ -4,11 +4,15 @@ let cachedApiHost: string | null = null;
 async function getApiHost(): Promise<string> {
   if (cachedApiHost !== null) return cachedApiHost as string;
   try {
-    const res = await fetch('/config.json');
-    if (!res.ok) throw new Error('config.json fetch failed');
+    const res = await fetch("/config.json");
+    if (!res.ok) throw new Error("config.json fetch failed");
     const config = await res.json();
-    if (!config.apiEndpoint) throw new Error('apiEndpoint not found in config.json');
-    cachedApiHost = (config.apiEndpoint ?? "http://localhost:3000").replace(/\/$/, ''); // 末尾スラッシュ除去
+    if (!config.apiEndpoint)
+      throw new Error("apiEndpoint not found in config.json");
+    cachedApiHost = (config.apiEndpoint ?? "http://localhost:3000").replace(
+      /\/$/,
+      ""
+    ); // 末尾スラッシュ除去
     if (cachedApiHost !== null) {
       return cachedApiHost;
     } else {
@@ -16,6 +20,7 @@ async function getApiHost(): Promise<string> {
     }
   } catch (e) {
     // 開発時はローカルAPI fallback
+    console.error("config.jsonの取得に失敗しました: ", e);
     return "http://localhost:3000";
   }
 }
@@ -81,7 +86,10 @@ const loadPoints = async (): Promise<PointsResponse> => {
   return data;
 };
 
-const satelliteImageUrl = async (id: string, maxSize: number = 256): Promise<string> => {
+const satelliteImageUrl = async (
+  id: string,
+  maxSize: number = 256
+): Promise<string> => {
   const apiHost = await getApiHost();
   return `${apiHost}/points/${id}/satellite.jpg?max_size=${maxSize}`;
 };
