@@ -197,7 +197,11 @@ jobs:
           cat dist/config.json
           cd ../../..
 
+          echo "distディレクトリの中身確認:"
+          ls -l get-satellite-image/ui/dist
+
           echo "UIファイルをS3バケットにアップロードします: ${S3_BUCKET}"
+          aws s3 sync get-satellite-image/ui/dist s3://${S3_BUCKET} --delete
           
           # S3バケット名が取得できているか確認
           if [ -z "${S3_BUCKET}" ] || [ "${S3_BUCKET}" = "None" ] || [ "${S3_BUCKET}" = "null" ]; then
