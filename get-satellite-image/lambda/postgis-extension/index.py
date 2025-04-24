@@ -58,6 +58,7 @@ def handler(event, context):
     """
     カスタムリソースハンドラー: Aurora PostgreSQLにPostGIS拡張をインストールします
     """
+    logger.info("=== Lambda handler START ===")
     logger.info(f"イベント受信: {json.dumps(event)}")
     
     # 物理リソースID
@@ -69,8 +70,12 @@ def handler(event, context):
         logger.info("Deleteリクエストを受信しました。何もせずに成功を返します。")
         send_response(event, context, SUCCESS, {}, physical_id)
         return
-    
+    response_sent = False
     try:
+        if event['RequestType'] == 'Delete':
+            logger.info("Deleteリクエストを受信しました。何もせずに成功を返します。")
+            send_response(event, context, SUCCESS, {}, physical_id)
+            return
         # シークレットからデータベース接続情報を取得
         secret_arn = os.environ['DB_SECRET_ARN']
         db_name = os.environ['DB_NAME']
@@ -89,12 +94,13 @@ def handler(event, context):
         clusters = rds_client.describe_db_clusters()
         
         # クラスターエンドポイントを検索
+        db_cluster_identifier = os.environ.get('DB_CLUSTER_IDENTIFIER')
         endpoint = None
+        # logger.info(f"DBクラスター一覧: {[c['DBClusterIdentifier'] for c in clusters['DBClusters']]}")
         logger.info(f"DBクラスター一覧: {[c['DBClusterIdentifier'] for c in clusters['DBClusters']]}")
         for cluster in clusters['DBClusters']:
-            # クラスター識別子をログに出力
             logger.info(f"DBクラスター: {cluster['DBClusterIdentifier']}")
-            if 'SatelliteImageDb' in cluster['DBClusterIdentifier']:
+            if cluster['DBClusterIdentifier'] == db_cluster_identifier:
                 endpoint = cluster['Endpoint']
                 break
         
@@ -132,17 +138,34 @@ def handler(event, context):
             version = cur.fetchone()[0]
             logger.info(f"PostGIS バージョン: {version}")
             response_data['PostGISVersion'] = version
+
+            # ここでテーブル作成SQLを追加！
+            create_table_sql = '''
+            CREATE TABLE IF NOT EXISTS points (
+                id SERIAL PRIMARY KEY,
+                geom geometry(Point, 4326)
+            );
+            '''
+            cur.execute(create_table_sql)
+            logger.info("pointsテーブルの作成が完了しました")
         
         conn.close()
         
         # 成功レスポンスを送信
         send_response(event, context, SUCCESS, response_data, physical_id)
+        response_sent = True
         
     except psycopg2.OperationalError as e:
         logger.error(f"データベース接続エラー: {str(e)}")
         # データベースがまだ準備できていない可能性があるため、成功を返す
         send_response(event, context, SUCCESS, {"Status": "データベース接続エラー、後で再試行します"}, physical_id)
+        response_sent = True
     except Exception as e:
         logger.error(f"エラーが発生しました: {str(e)}")
         # エラーが発生した場合はFAILEDステータスを返す
         send_response(event, context, FAILED, {"Error": str(e)}, physical_id)
+        response_sent = True
+    finally:
+        if not response_sent:
+            # 何らかの理由でレスポンスが送信されなかった場合、FAILEDを返す
+            send_response(event, context, FAILED, {"Error": "レスポンス送信に失敗しました"}, physical_id)

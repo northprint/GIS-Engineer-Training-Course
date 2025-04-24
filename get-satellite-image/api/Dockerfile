@@ -15,7 +15,8 @@ RUN pip install --no-cache-dir \
     boto3 \
     aws-lambda-powertools \
     numpy \
-    pillow
+    pillow \
+    rio-tiler
 
 # アプリケーションコードのコピー
 COPY ./app ${LAMBDA_TASK_ROOT}/app

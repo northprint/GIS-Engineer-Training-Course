@@ -33,9 +33,11 @@ def get_db_connection_info():
     clusters = rds_client.describe_db_clusters()
     
     # クラスターエンドポイントを検索
+    db_cluster_identifier = os.environ.get('DB_CLUSTER_IDENTIFIER')
     endpoint = None
     for cluster in clusters['DBClusters']:
-        if 'SatelliteImageDb' in cluster['DBClusterIdentifier']:
+        print(f"Cluster found: {cluster['DBClusterIdentifier']}")
+        if cluster['DBClusterIdentifier'] == db_cluster_identifier:
             endpoint = cluster['Endpoint']
             break
     

@@ -29,24 +29,42 @@ app.add_middleware(
     expose_headers=["Content-Type"],
 )
 
-# データベース接続プールの初期化
-# 環境変数からデータベースURLを取得
-database_url = os.environ.get("DATABASE_URL")
-if not database_url:
-    logger.warning("DATABASE_URL環境変数が設定されていません。デフォルト値を使用します。")
-    database_url = "postgresql://postgres:postgres@localhost:5432/satellite_image_db"
+pool = None
 
-# 接続プールの作成
-try:
-    pool = psycopg2.pool.SimpleConnectionPool(
-        dsn=database_url, minconn=1, maxconn=10
-    )
-    logger.info("データベース接続プールを初期化しました")
-except Exception as e:
-    logger.error(f"データベース接続プールの初期化に失敗しました: {str(e)}")
-    # Lambda環境では起動時にエラーが発生してもサービスは継続する
-    # 実際のリクエスト時に再接続を試みる
-    pool = None
+@app.on_event("startup")
+def on_startup():
+    global pool
+    database_url = os.environ.get("DATABASE_URL")
+    if not database_url:
+        logger.warning("DATABASE_URL環境変数が設定されていません。デフォルト値を使用します。")
+        database_url = "postgresql://postgres:postgres@localhost:5432/satellite_image_db"
+    try:
+        pool = psycopg2.pool.SimpleConnectionPool(
+            dsn=database_url, minconn=1, maxconn=10
+        )
+        logger.info("データベース接続プールを初期化しました")
+    except Exception as e:
+        logger.error(f"データベース接続プールの初期化に失敗しました: {str(e)}")
+        pool = None
+
+# # データベース接続プールの初期化
+# # 環境変数からデータベースURLを取得
+# database_url = os.environ.get("DATABASE_URL")
+# if not database_url:
+#     logger.warning("DATABASE_URL環境変数が設定されていません。デフォルト値を使用します。")
+#     database_url = "postgresql://postgres:postgres@localhost:5432/satellite_image_db"
+
+# # 接続プールの作成
+# try:
+#     pool = psycopg2.pool.SimpleConnectionPool(
+#         dsn=database_url, minconn=1, maxconn=10
+#     )
+#     logger.info("データベース接続プールを初期化しました")
+# except Exception as e:
+#     logger.error(f"データベース接続プールの初期化に失敗しました: {str(e)}")
+#     # Lambda環境では起動時にエラーが発生してもサービスは継続する
+#     # 実際のリクエスト時に再接続を試みる
+#     pool = None
 
 def get_connection():
     """データベース接続を取得する関数"""
