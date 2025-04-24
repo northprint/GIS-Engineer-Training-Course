@@ -37,7 +37,7 @@ const map = new Map({
 const markers: Marker[] = [];
 let isMarkerClicked = false;
 
-const createPopupDom = (id: string) => {
+const createPopupDom = async (id: string) => {
   const popupDom = document.createElement("div");
   popupDom.style.display = "flex";
   popupDom.style.flexDirection = "column";
@@ -57,7 +57,7 @@ const createPopupDom = (id: string) => {
   
   // 画像を表示する要素
   const anchor = document.createElement("a");
-  anchor.href = satelliteImageUrl(id, 1024);
+  anchor.href = await satelliteImageUrl(id, 1024);
   anchor.style.display = "none"; // 最初は非表示
   
   // 画像要素
@@ -65,7 +65,7 @@ const createPopupDom = (id: string) => {
   img.width = 256;
   img.height = 256;
   img.alt = "衛星画像";
-  img.src = satelliteImageUrl(id);
+  img.src = await satelliteImageUrl(id);
   
   // 画像の読み込みが完了したらローディング表示を非表示にして画像を表示
   img.onload = () => {
@@ -109,7 +109,9 @@ const loadMarkers = async () => {
       .setPopup(popup);
     marker.getElement().addEventListener("click", () => {
       isMarkerClicked = true;
-      popup.setDOMContent(createPopupDom(feature.properties.id));
+      (async () => {
+        popup.setDOMContent(await createPopupDom(feature.properties.id));
+      })();
     });
     markers.push(marker);
   });
