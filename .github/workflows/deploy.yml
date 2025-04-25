@@ -90,8 +90,8 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "20"
-          # cache: "pnpm"
-          # cache-dependency-path: ./get-satellite-image/cdk/pnpm-lock.yaml
+          cache: "pnpm"
+          cache-dependency-path: ./get-satellite-image/cdk/pnpm-lock.yaml
 
       - name: pnpmのインストール
         run: npm install -g pnpm
@@ -116,12 +116,17 @@ jobs:
           fi
           echo "TEMPLATE_BUCKET=${TEMPLATE_BUCKET}" >> $GITHUB_ENV
 
+      - name: List Lambda source files
+        run: |
+          cd get-satellite-image/cdk
+          ls -laR get-satellite-image/lambda
+
       - name: CDKスタックの合成とデプロイ
         id: deploy
         continue-on-error: true
         run: |
           cd get-satellite-image/cdk
-          npx cdk deploy ${{ env.STACK_NAME }} --require-approval never --asset-parallelism 1
+          pnpm cdk deploy ${{ env.STACK_NAME }} --require-approval never -vvv --asset-parallelism 1
 
       - name: スタックイベントの取得と表示
         if: steps.deploy.outcome == 'failure'
