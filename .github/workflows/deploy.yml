@@ -123,8 +123,12 @@ jobs:
 
       - name: CDKスタックの合成とデプロイ
         id: deploy
-        continue-on-error: true
+        # continue-on-error: true
         run: |
+          # CDKコマンド実行前にキャッシュを削除
+          echo "Clearing CDK cache..."
+          rm -rf ~/.cdk/cache
+
           cd get-satellite-image/cdk
           pnpm cdk deploy ${{ env.STACK_NAME }} --require-approval never -vvv --asset-parallelism 1
 
