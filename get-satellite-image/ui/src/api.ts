@@ -91,7 +91,14 @@ const satelliteImageUrl = async (
   maxSize: number = 256
 ): Promise<string> => {
   const apiHost = await getApiHost();
-  return `${apiHost}/points/${id}/satellite.jpg?max_size=${maxSize}`;
+  const response = await fetch(
+    `${apiHost}/points/${id}/satellite.jpg?max_size=${maxSize}`
+  );
+  if (!response.ok) {
+    throw new Error(`API error: ${response.status}`);
+  }
+  const blob = await response.blob();
+  return URL.createObjectURL(blob);
 };
 
 export { createPoint, deletePoint, loadPoints, satelliteImageUrl };
