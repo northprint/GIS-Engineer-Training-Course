@@ -116,6 +116,11 @@ jobs:
           fi
           echo "TEMPLATE_BUCKET=${TEMPLATE_BUCKET}" >> $GITHUB_ENV
 
+      - name: CDK Synth Check
+        run: |
+          cd get-satellite-image/cdk
+          pnpm cdk synth CdkStack -vvv
+
       - name: CDKスタックの合成とデプロイ
         id: deploy
         continue-on-error: true
