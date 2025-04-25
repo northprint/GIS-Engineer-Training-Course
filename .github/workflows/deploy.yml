@@ -25,7 +25,7 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.9"
-          cache: "pip"
+          # cache: "pip"
 
       - name: 依存関係のインストール
         run: |
@@ -88,8 +88,17 @@ jobs:
     permissions:
       id-token: write # OIDCトークン取得のために必要
       contents: read
-
     steps:
+      - name: Clean before CDK command
+        run: |
+          cd get-satellite-image/cdk # プロジェクトディレクトリへ移動
+          echo "Cleaning up directories..."
+          rm -rf ~/.cdk       # ホームディレクトリのCDKキャッシュ等
+          rm -rf cdk.out     # プロジェクト内のCDK出力
+          rm -rf build       # TypeScriptビルド出力 (あれば)
+        # node_modules は pnpm install で再生成されるので通常不要だが、念のため追加しても良い
+        # rm -rf node_module
+
       - name: CDKキャッシュ削除
         run: rm -rf get-satellite-image/cdk/cdk.out
 
@@ -183,7 +192,7 @@ jobs:
         # continue-on-error: true
         run: |
           cd get-satellite-image/cdk
-          pnpm cdk deploy ${{ env.STACK_NAME }} --require-approval never -vvv --asset-parallelism 1
+          npx cdk deploy ${{ env.STACK_NAME }} --require-approval never -vvv --asset-parallelism 1
 
       - name: スタックイベントの取得と表示
         if: steps.deploy.outcome == 'failure'

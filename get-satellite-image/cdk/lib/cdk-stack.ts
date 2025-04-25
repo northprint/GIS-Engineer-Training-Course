@@ -13,6 +13,7 @@ import * as iam from "aws-cdk-lib/aws-iam";
 import * as secretsmanager from "aws-cdk-lib/aws-secretsmanager";
 import * as cr from "aws-cdk-lib/custom-resources";
 import { RemovalPolicy, Duration } from "aws-cdk-lib";
+import * as path from "path";
 
 // 例: S3バケットとオブジェクト名
 const s3BucketName = "lambda-layer-psycopg2-manual";
@@ -34,8 +35,22 @@ export class CdkStack extends cdk.Stack {
     // Lambda関数定義例
     new lambda.Function(this, "MyFunc", {
       runtime: lambda.Runtime.PYTHON_3_9,
-      handler: "handler.main",
-      code: lambda.Code.fromAsset("../lambda/postgis-extension"),
+      handler: "index.handler",
+      code: lambda.Code.fromAsset(
+        path.resolve(__dirname, "../../lambda/postgis-extension"),
+        {
+          bundling: {
+            image: lambda.Runtime.PYTHON_3_9.bundlingImage,
+            command: [
+              "bash",
+              "-c",
+              [
+                "pip install -r requirements.txt -t /asset-output && cp -r . /asset-output",
+              ].join(" && "),
+            ],
+          },
+        }
+      ),
       layers: [layer], // ここでLayerを指定！
       // ...他のプロパティ...
     });
