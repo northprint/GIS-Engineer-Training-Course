@@ -81,6 +81,12 @@ jobs:
           cp -r ../lambda/postgis-extension/* postgis-extension/ 2>/dev/null || true
           ls -la postgis-extension/
 
+      - name: AWS認証の設定
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
       - name: API Dockerイメージのビルド＆ECRプッシュ
         run: |
           cd get-satellite-image/api
