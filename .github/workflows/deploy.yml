@@ -116,19 +116,19 @@ jobs:
           fi
           echo "TEMPLATE_BUCKET=${TEMPLATE_BUCKET}" >> $GITHUB_ENV
 
-      - name: CDK Synth Check
+      - name: Check CDK Environment
+        id: doctor
         run: |
           cd get-satellite-image/cdk
-          pnpm cdk synth CdkStack -vvv
+          pnpm cdk doctor
+
+      - name: Create .cdk directory
+        run: mkdir -p ~/.cdk/cache
 
       - name: CDKスタックの合成とデプロイ
         id: deploy
         # continue-on-error: true
         run: |
-          # CDKコマンド実行前にキャッシュを削除
-          echo "Clearing CDK cache..."
-          rm -rf ~/.cdk/cache
-
           cd get-satellite-image/cdk
           pnpm cdk deploy ${{ env.STACK_NAME }} --require-approval never -vvv --asset-parallelism 1
 
