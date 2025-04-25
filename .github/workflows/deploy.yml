@@ -107,6 +107,9 @@ jobs:
           cd get-satellite-image/cdk
           pnpm install
 
+      - name: Compile TypeScript
+        run: pnpm tsc
+
       - name: S3バケットの作成
         run: |
           ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
