@@ -35,9 +35,7 @@ export class CdkStack extends cdk.Stack {
     new lambda.Function(this, "MyFunc", {
       runtime: lambda.Runtime.PYTHON_3_9,
       handler: "handler.main",
-      code: lambda.Code.fromAsset(
-        "get-satellite-image/lambda/postgis-extension"
-      ),
+      code: lambda.Code.fromAsset("../lambda/postgis-extension"),
       layers: [layer], // ここでLayerを指定！
       // ...他のプロパティ...
     });
