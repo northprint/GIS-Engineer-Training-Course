@@ -237,6 +237,7 @@ export class CdkStack extends cdk.Stack {
     const api = new apigateway.LambdaRestApi(this, "SatelliteImageApi", {
       handler: apiFunction,
       proxy: true,
+      binaryMediaTypes: ["image/jpeg"],
       defaultCorsPreflightOptions: {
         allowOrigins: apigateway.Cors.ALL_ORIGINS,
         allowMethods: apigateway.Cors.ALL_METHODS,

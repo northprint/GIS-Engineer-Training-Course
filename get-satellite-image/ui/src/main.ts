@@ -11,6 +11,7 @@ import {
 const map = new Map({
   container: "app",
   maxZoom: 18,
+  zoom: 12,
   center: [139.767125, 35.681236],
   style: {
     version: 8,
@@ -30,7 +31,6 @@ const map = new Map({
         source: "osm",
       },
     ],
-    zoom: 12,
   },
 });
 
