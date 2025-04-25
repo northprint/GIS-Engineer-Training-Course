@@ -122,8 +122,12 @@ jobs:
           cd get-satellite-image/cdk
           pnpm cdk doctor
 
-      - name: Create .cdk directory
-        run: mkdir -p ~/.cdk/cache
+      - name: Clean and create .cdk directory
+        run: |
+          echo "Cleaning .cdk directory..."
+          rm -rf ~/.cdk
+          echo "Creating .cdk/cache directory..."
+          mkdir -p ~/.cdk/cache
 
       - name: CDKスタックの合成とデプロイ
         id: deploy
