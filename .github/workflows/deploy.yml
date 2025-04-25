@@ -108,12 +108,6 @@ jobs:
           cache: "npm"
           cache-dependency-path: "./get-satellite-image/cdk/package-lock.json"
 
-      - name: AWS認証の設定
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: ${{ env.AWS_REGION }}
-
       - name: CDK依存関係のインストール
         run: |
           cd get-satellite-image/cdk
