@@ -202,7 +202,7 @@ async def satellite_preview (
     with Reader(cog_url) as src:
         img = src.preview(max_size=max_size)
     jpg=img.render(img_format="JPEG")
-
+    print(f"画像バイナリサイズ: {len(jpg)} bytes")
     return StreamingResponse(io.BytesIO(jpg), media_type="image/jpeg")
 
 
