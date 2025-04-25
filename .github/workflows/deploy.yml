@@ -118,16 +118,7 @@ jobs:
         continue-on-error: true
         run: |
           cd get-satellite-image/cdk
-          mkdir -p ~/.cdk
-          echo '{"version":"1.0.0","bootstrapStackVersionSsmParameter":"","requireApproval":"never"}' > ~/.cdk/config.json
-          npx cdk synth ${{ env.STACK_NAME }} --no-version-reporting > template.yaml
-          sed -i '/NOTICES/,/cdk acknowledge/d' template.yaml
-          aws cloudformation deploy \
-            --template-file template.yaml \
-            --stack-name ${{ env.STACK_NAME }} \
-            --s3-bucket ${TEMPLATE_BUCKET} \
-            --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND \
-            --no-fail-on-empty-changeset
+          npx cdk deploy ${{ env.STACK_NAME }} --require-approval never --asset-parallelism 1
 
       - name: スタックイベントの取得と表示
         if: steps.deploy.outcome == 'failure'
