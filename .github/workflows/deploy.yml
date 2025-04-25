@@ -53,6 +53,8 @@ jobs:
     steps:
       - name: リポジトリのチェックアウト
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # これで全履歴
 
       - name: PostGIS Lambdaパッケージのダウンロード
         uses: actions/download-artifact@v4
@@ -81,32 +83,18 @@ jobs:
           cp -r ../lambda/postgis-extension/* postgis-extension/ 2>/dev/null || true
           ls -la postgis-extension/
 
-      - name: AWS認証の設定
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: ${{ env.AWS_REGION }}
-
-      - name: API Dockerイメージのビルド＆ECRプッシュ
-        run: |
-          cd get-satellite-image/api
-          ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-          AWS_REGION=${{ env.AWS_REGION }}
-          # ECRリポジトリ名はCDK側と合わせて "satellite-image-api" で仮定
-          ECR_REPO="$ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/satellite-image-api"
-          aws ecr describe-repositories --repository-names satellite-image-api || aws ecr create-repository --repository-name satellite-image-api
-          docker build -t satellite-image-api .
-          aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REPO
-          docker tag satellite-image-api:latest $ECR_REPO:latest
-          docker push $ECR_REPO:latest
-          cd ../../..
-
       - name: Node.jsのセットアップ
         uses: actions/setup-node@v4
         with:
           node-version: "20"
           cache: "npm"
           cache-dependency-path: "./get-satellite-image/cdk/package-lock.json"
+
+      - name: AWS認証の設定
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
 
       - name: CDK依存関係のインストール
         run: |
