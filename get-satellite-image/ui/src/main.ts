@@ -56,17 +56,31 @@ const createPopupDom = async (id: string) => {
   loadingDiv.style.fontWeight = "bold";
   loadingDiv.textContent = "衛星画像を読み込み中...";
 
+  popupDom.appendChild(loadingDiv);
+
+  // 画像取得（APIは1回だけ！）
+  let blobUrl: string | null = null;
+  try {
+    blobUrl = await satelliteImageUrl(id, 256);
+  } catch (e) {
+    loadingDiv.textContent = "画像の取得に失敗しました";
+    loadingDiv.style.backgroundColor = "#ffeeee";
+    return popupDom;
+  }
+
   // 画像を表示する要素
   const anchor = document.createElement("a");
-  anchor.href = await satelliteImageUrl(id, 1024);
-  anchor.style.display = "none"; // 最初は非表示
+  anchor.href = blobUrl;
+  anchor.style.display = "block";
+  anchor.target = "_blank";
+  anchor.rel = "noopener noreferrer";
 
   // 画像要素
   const img = document.createElement("img");
   img.width = 256;
   img.height = 256;
   img.alt = "衛星画像";
-  img.src = await satelliteImageUrl(id);
+  img.src = blobUrl;
 
   // 画像の読み込みが完了したらローディング表示を非表示にして画像を表示
   img.onload = () => {
@@ -78,6 +92,7 @@ const createPopupDom = async (id: string) => {
   img.onerror = () => {
     loadingDiv.textContent = "画像の読み込みに失敗しました";
     loadingDiv.style.backgroundColor = "#ffeeee";
+    anchor.style.display = "none";
   };
 
   anchor.appendChild(img);
@@ -94,7 +109,6 @@ const createPopupDom = async (id: string) => {
     await loadMarkers();
   };
 
-  popupDom.appendChild(loadingDiv);
   popupDom.appendChild(anchor);
   popupDom.appendChild(buttonDom);
   return popupDom;
