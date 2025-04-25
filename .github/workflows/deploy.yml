@@ -89,23 +89,6 @@ jobs:
       id-token: write # OIDCトークン取得のために必要
       contents: read
     steps:
-      - name: Show current directory and files # 確認用のステップを追加
-        run: |
-          echo "Current directory:"
-          pwd
-          echo "Files in current directory:"
-          ls -lA
-
-      - name: Clean before CDK command
-        run: |
-          cd get-satellite-image/cdk # プロジェクトディレクトリへ移動
-          echo "Cleaning up directories..."
-          rm -rf ~/.cdk       # ホームディレクトリのCDKキャッシュ等
-          rm -rf cdk.out     # プロジェクト内のCDK出力
-          rm -rf build       # TypeScriptビルド出力 (あれば)
-        # node_modules は pnpm install で再生成されるので通常不要だが、念のため追加しても良い
-        # rm -rf node_module
-
       - name: リポジトリのチェックアウト
         uses: actions/checkout@v4
         with:
@@ -173,18 +156,12 @@ jobs:
           fi
           echo "TEMPLATE_BUCKET=${TEMPLATE_BUCKET}" >> $GITHUB_ENV
 
-      - name: Check CDK Environment
-        id: doctor
+      - name: Clean before CDK command
         run: |
-          cd get-satellite-image/cdk
-          pnpm cdk doctor
-
-      - name: Clean and create .cdk directory
-        run: |
-          echo "Cleaning .cdk directory..."
           rm -rf ~/.cdk
-          echo "Creating .cdk/cache directory..."
-          mkdir -p ~/.cdk/cache
+          rm -rf cdk.out
+          rm -rf build
+        working-directory: ./get-satellite-image/cdk
 
       - name: CDKスタックの合成とデプロイ
         id: deploy
