@@ -89,7 +89,7 @@ jobs:
       - name: Node.jsのセットアップ
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
           # cache: "pnpm"
           # cache-dependency-path: ./get-satellite-image/cdk/pnpm-lock.yaml
 
@@ -115,11 +115,6 @@ jobs:
             aws s3 mb s3://${TEMPLATE_BUCKET} --region ${{ env.AWS_REGION }}
           fi
           echo "TEMPLATE_BUCKET=${TEMPLATE_BUCKET}" >> $GITHUB_ENV
-
-      - name: List Lambda source files
-        run: |
-          cd get-satellite-image/cdk
-          ls -laR get-satellite-image/lambda
 
       - name: CDKスタックの合成とデプロイ
         id: deploy
