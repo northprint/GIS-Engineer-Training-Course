@@ -90,8 +90,8 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "20"
-          cache: "pnpm"
-          cache-dependency-path: ./get-satellite-image/cdk/pnpm-lock.yaml
+          # cache: "pnpm"
+          # cache-dependency-path: ./get-satellite-image/cdk/pnpm-lock.yaml
 
       - name: pnpmのインストール
         run: npm install -g pnpm
