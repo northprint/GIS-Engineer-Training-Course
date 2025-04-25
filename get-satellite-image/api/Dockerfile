@@ -8,7 +8,7 @@ RUN yum update -y && \
 # 必要なPythonパッケージのインストール
 RUN pip install --no-cache-dir \
     fastapi \
-    mangum \
+    "mangum>=0.17.0" \
     uvicorn \
     psycopg2-binary \
     httpx \
