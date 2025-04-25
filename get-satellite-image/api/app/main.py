@@ -3,6 +3,8 @@ import os
 import psycopg2
 import psycopg2.pool
 from fastapi import Depends, FastAPI, Response
+from fastapi.responses import StreamingResponse
+import io
 from fastapi.middleware.cors import CORSMiddleware
 from rio_tiler.io import Reader
 from aws_lambda_powertools import Logger
@@ -201,7 +203,7 @@ async def satellite_preview (
         img = src.preview(max_size=max_size)
     jpg=img.render(img_format="JPEG")
 
-    return Response(content=jpg, media_type="image/jpeg")
+    return StreamingResponse(io.BytesIO(jpg), media_type="image/jpeg")
 
 
 async def search_dataset(minx: float, miny: float, maxx: float, maxy: float, limit: int = 12):
