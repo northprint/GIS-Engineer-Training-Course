@@ -81,6 +81,20 @@ jobs:
           cp -r ../lambda/postgis-extension/* postgis-extension/ 2>/dev/null || true
           ls -la postgis-extension/
 
+      - name: API Dockerイメージのビルド＆ECRプッシュ
+        run: |
+          cd get-satellite-image/api
+          ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+          AWS_REGION=${{ env.AWS_REGION }}
+          # ECRリポジトリ名はCDK側と合わせて "satellite-image-api" で仮定
+          ECR_REPO="$ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/satellite-image-api"
+          aws ecr describe-repositories --repository-names satellite-image-api || aws ecr create-repository --repository-name satellite-image-api
+          docker build -t satellite-image-api .
+          aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REPO
+          docker tag satellite-image-api:latest $ECR_REPO:latest
+          docker push $ECR_REPO:latest
+          cd ../../..
+
       - name: Node.jsのセットアップ
         uses: actions/setup-node@v4
         with:
