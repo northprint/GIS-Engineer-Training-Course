@@ -108,7 +108,9 @@ jobs:
           pnpm install
 
       - name: Compile TypeScript
-        run: pnpm tsc
+        run: |
+          cd get-satellite-image/cdk
+          pnpm tsc
 
       - name: S3バケットの作成
         run: |
