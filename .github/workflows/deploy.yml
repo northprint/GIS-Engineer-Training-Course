@@ -90,8 +90,8 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "20"
-          cache: "pnpm"
-          cache-dependency-path: ./get-satellite-image/cdk/pnpm-lock.yaml
+          # cache: "pnpm"
+          # cache-dependency-path: ./get-satellite-image/cdk/pnpm-lock.yaml
 
       - name: pnpmのインストール
         run: npm install -g pnpm
@@ -169,7 +169,7 @@ jobs:
             echo "S3バケット名が取得できていません。CloudFormationスタックから手動で取得します。"
             # スタックリソースを再取得
             aws cloudformation list-stack-resources --stack-name ${{ env.STACK_NAME }} > stack-resources.json
-            
+
             # すべてのリソースを表示して確認
             echo "\nすべてのリソース一覧:"
             cat stack-resources.json | jq -r '.StackResourceSummaries[] | "\(.LogicalResourceId): \(.PhysicalResourceId)"'
