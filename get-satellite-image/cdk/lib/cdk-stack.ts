@@ -14,9 +14,31 @@ import * as secretsmanager from "aws-cdk-lib/aws-secretsmanager";
 import * as cr from "aws-cdk-lib/custom-resources";
 import { RemovalPolicy, Duration } from "aws-cdk-lib";
 
+// 例: S3バケットとオブジェクト名
+const s3BucketName = "lambda-layer-psycopg2-manual";
+const s3ObjectKey = "aws-psycopg2-layer.zip";
+
 export class CdkStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
+
+    const layer = new lambda.LayerVersion(this, "Psycopg2Layer", {
+      code: lambda.Code.fromBucket(
+        cdk.aws_s3.Bucket.fromBucketName(this, "LayerBucket", s3BucketName),
+        s3ObjectKey
+      ),
+      compatibleRuntimes: [lambda.Runtime.PYTHON_3_9],
+      description: "aws-psycopg2 for Lambda",
+    });
+
+    // Lambda関数定義例
+    new lambda.Function(this, "MyFunc", {
+      runtime: lambda.Runtime.PYTHON_3_9,
+      handler: "handler.main",
+      code: lambda.Code.fromAsset("path/to/lambda"),
+      layers: [layer], // ここでLayerを指定！
+      // ...他のプロパティ...
+    });
 
     // VPCの作成
     const vpc = new ec2.Vpc(this, "SatelliteImageVpc", {

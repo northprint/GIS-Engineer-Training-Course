@@ -42,6 +42,33 @@ jobs:
           path: get-satellite-image/lambda/postgis-extension.zip
           retention-days: 1
 
+  build-psycopg2-layer:
+    name: psycopg2 Layerビルド
+    runs-on: ubuntu-latest
+    steps:
+      - name: チェックアウト
+        uses: actions/checkout@v4
+
+      - name: Layerディレクトリ作成
+        run: mkdir -p layer/python/lib/python3.9/site-packages
+
+      - name: Dockerでaws-psycopg2インストール
+        run: |
+          docker run --rm -v ${{ github.workspace }}/layer/python/lib/python3.9/site-packages:/out public.ecr.aws/sam/build-python3.9 \
+            pip install aws-psycopg2==1.3.8 -t /out
+
+      - name: Layerをzip化
+        run: |
+          cd layer
+          zip -r9 ../aws-psycopg2-layer.zip .
+          cd ..
+
+      - name: S3にアップロード
+        env:
+          AWS_REGION: ap-northeast-1
+        run: |
+          aws s3 cp aws-psycopg2-layer.zip s3://lambda-layer-psycopg2-manual/
+
   deploy-cdk:
     name: CDKデプロイ
     runs-on: ubuntu-latest
@@ -53,6 +80,11 @@ jobs:
     steps:
       - name: CDKキャッシュ削除
         run: rm -rf get-satellite-image/cdk/cdk.out
+
+      - name: Clean CDK cache and context
+        run: |
+          rm -rf ~/.cdk
+          rm -f cdk.context.json .cdk.json
 
       - name: リポジトリのチェックアウト
         uses: actions/checkout@v4
