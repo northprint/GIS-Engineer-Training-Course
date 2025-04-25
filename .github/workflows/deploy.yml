@@ -89,6 +89,13 @@ jobs:
       id-token: write # OIDCトークン取得のために必要
       contents: read
     steps:
+      - name: Show current directory and files # 確認用のステップを追加
+        run: |
+          echo "Current directory:"
+          pwd
+          echo "Files in current directory:"
+          ls -lA
+
       - name: Clean before CDK command
         run: |
           cd get-satellite-image/cdk # プロジェクトディレクトリへ移動
@@ -98,14 +105,6 @@ jobs:
           rm -rf build       # TypeScriptビルド出力 (あれば)
         # node_modules は pnpm install で再生成されるので通常不要だが、念のため追加しても良い
         # rm -rf node_module
-
-      - name: CDKキャッシュ削除
-        run: rm -rf get-satellite-image/cdk/cdk.out
-
-      - name: Clean CDK cache and context
-        run: |
-          rm -rf ~/.cdk
-          rm -f cdk.context.json .cdk.json
 
       - name: リポジトリのチェックアウト
         uses: actions/checkout@v4
