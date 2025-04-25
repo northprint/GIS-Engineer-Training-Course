@@ -11,8 +11,8 @@ import {
 const map = new Map({
   container: "app",
   maxZoom: 18,
-  zoom: 12,
   center: [139.767125, 35.681236],
+  zoom: 10,
   style: {
     version: 8,
     sources: {
