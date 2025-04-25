@@ -51,6 +51,9 @@ jobs:
       contents: read
 
     steps:
+      - name: CDKキャッシュ削除
+        run: rm -rf get-satellite-image/cdk/cdk.out
+
       - name: リポジトリのチェックアウト
         uses: actions/checkout@v4
         with:
