@@ -93,6 +93,9 @@ jobs:
           cache: "npm"
           cache-dependency-path: "./get-satellite-image/cdk/package-lock.json"
 
+      - name: CDK CLIのバージョン固定インストール
+        run: npm install -g aws-cdk@2.171.0
+
       - name: AWS認証の設定
         uses: aws-actions/configure-aws-credentials@v4
         with:
