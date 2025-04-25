@@ -93,8 +93,8 @@ jobs:
           cache: "pnpm"
           cache-dependency-path: ./get-satellite-image/cdk/pnpm-lock.yaml
 
-      - name: CDK CLIのバージョン固定インストール
-        run: npm install -g aws-cdk@2.171.0
+      - name: pnpmのインストール
+        run: npm install -g pnpm
 
       - name: AWS認証の設定
         uses: aws-actions/configure-aws-credentials@v4
@@ -105,7 +105,7 @@ jobs:
       - name: CDK依存関係のインストール
         run: |
           cd get-satellite-image/cdk
-          npm ci
+          pnpm install
 
       - name: S3バケットの作成
         run: |
@@ -173,18 +173,18 @@ jobs:
             # すべてのリソースを表示して確認
             echo "\nすべてのリソース一覧:"
             cat stack-resources.json | jq -r '.StackResourceSummaries[] | "\(.LogicalResourceId): \(.PhysicalResourceId)"'
-            
+
             # まずResourceTypeで探す
             S3_BUCKET=$(cat stack-resources.json | jq -r '.StackResourceSummaries[] | select(.ResourceType=="AWS::S3::Bucket") | .PhysicalResourceId')
-            
+
             # もし取得できない場合は、論理IDでも試す
             if [ -z "${S3_BUCKET}" ] || [ "${S3_BUCKET}" = "null" ]; then
               echo "ResourceTypeで取得できなかったため、論理IDで試します"
               S3_BUCKET=$(cat stack-resources.json | jq -r '.StackResourceSummaries[] | select(.LogicalResourceId=="SatelliteImageUiBucket") | .PhysicalResourceId')
             fi
-            
+
             echo "再取得したS3バケット名: ${S3_BUCKET}"
-            
+
             # まだ取得できない場合はエラー
             if [ -z "${S3_BUCKET}" ] || [ "${S3_BUCKET}" = "None" ] || [ "${S3_BUCKET}" = "null" ]; then
               echo "ERROR: S3バケット名を取得できませんでした。UIファイルのアップロードをスキップします。"
