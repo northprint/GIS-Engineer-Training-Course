@@ -38,7 +38,7 @@ const map = new Map({
 const markers: Marker[] = [];
 let isMarkerClicked = false;
 
-const createPopupDom = async (id: string) => {
+const createPopupDom = (id: string) => {
   const popupDom = document.createElement("div");
   popupDom.style.display = "flex";
   popupDom.style.flexDirection = "column";
@@ -58,44 +58,41 @@ const createPopupDom = async (id: string) => {
 
   popupDom.appendChild(loadingDiv);
 
-  // 画像取得（APIは1回だけ！）
-  let blobUrl: string | null = null;
-  try {
-    blobUrl = await satelliteImageUrl(id, 256);
-  } catch (e) {
-    loadingDiv.textContent = "画像の取得に失敗しました";
-    loadingDiv.style.backgroundColor = "#ffeeee";
-    return popupDom;
-  }
+  // 画像取得は非同期で実行
+  satelliteImageUrl(id, 256)
+    .then(blobUrl => {
+      // 画像を表示する要素
+      const anchor = document.createElement("a");
+      anchor.href = blobUrl;
+      anchor.style.display = "block";
+      anchor.target = "_blank";
+      anchor.rel = "noopener noreferrer";
 
-  // 画像を表示する要素
-  const anchor = document.createElement("a");
-  anchor.href = blobUrl;
-  anchor.style.display = "block";
-  anchor.target = "_blank";
-  anchor.rel = "noopener noreferrer";
+      // 画像要素
+      const img = document.createElement("img");
+      img.width = 256;
+      img.height = 256;
+      img.alt = "衛星画像";
+      img.src = blobUrl;
 
-  // 画像要素
-  const img = document.createElement("img");
-  img.width = 256;
-  img.height = 256;
-  img.alt = "衛星画像";
-  img.src = blobUrl;
+      img.onload = () => {
+        loadingDiv.style.display = "none";
+        anchor.style.display = "block";
+      };
+      img.onerror = () => {
+        loadingDiv.textContent = "画像の読み込みに失敗しました";
+        loadingDiv.style.backgroundColor = "#ffeeee";
+        anchor.style.display = "none";
+      };
 
-  // 画像の読み込みが完了したらローディング表示を非表示にして画像を表示
-  img.onload = () => {
-    loadingDiv.style.display = "none";
-    anchor.style.display = "block";
-  };
-
-  // 画像の読み込みに失敗した場合
-  img.onerror = () => {
-    loadingDiv.textContent = "画像の読み込みに失敗しました";
-    loadingDiv.style.backgroundColor = "#ffeeee";
-    anchor.style.display = "none";
-  };
-
-  anchor.appendChild(img);
+      anchor.appendChild(img);
+      // 画像とダウンロードリンクを追加
+      popupDom.appendChild(anchor);
+    })
+    .catch(() => {
+      loadingDiv.textContent = "画像の取得に失敗しました";
+      loadingDiv.style.backgroundColor = "#ffeeee";
+    });
 
   // 削除ボタン
   const buttonDom = document.createElement("button");
@@ -108,8 +105,6 @@ const createPopupDom = async (id: string) => {
     clearMarkers();
     await loadMarkers();
   };
-
-  popupDom.appendChild(anchor);
   popupDom.appendChild(buttonDom);
   return popupDom;
 };

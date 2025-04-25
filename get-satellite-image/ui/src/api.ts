@@ -93,7 +93,12 @@ const satelliteImageUrl = async (
   const apiHost = await getApiHost();
   // return `${apiHost}/points/${id}/satellite.jpg?max_size=${maxSize}`;
   const response = await fetch(
-    `${apiHost}/points/${id}/satellite.jpg?max_size=${maxSize}`
+    `${apiHost}/points/${id}/satellite.jpg?max_size=${maxSize}`,
+    {
+      headers: {
+        Accept: "image/jpeg",
+      },
+    }
   );
   if (!response.ok) {
     throw new Error(`API error: ${response.status}`);
