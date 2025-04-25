@@ -1,5 +1,5 @@
 {
-  "app": "node build/bin/cdk.js",
+  "app": "node bin/cdk.js",
   "context": {
     "@aws-cdk/aws-lambda:recognizeLayerVersion": true,
     "@aws-cdk/core:checkSecretUsage": true,
