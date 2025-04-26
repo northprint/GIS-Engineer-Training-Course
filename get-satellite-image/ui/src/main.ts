@@ -58,6 +58,19 @@ const createPopupDom = (id: string) => {
 
   popupDom.appendChild(loadingDiv);
 
+  // 削除ボタン
+  const buttonDom = document.createElement("button");
+  buttonDom.textContent = "削除";
+  buttonDom.style.marginTop = "8px";
+  buttonDom.style.padding = "4px 12px";
+  buttonDom.onclick = async () => {
+    if (!confirm("地点を削除しますか？")) return;
+    await deletePoint(id);
+    clearMarkers();
+    await loadMarkers();
+  };
+  popupDom.appendChild(buttonDom);
+
   // 画像取得は非同期で実行
   satelliteImageUrl(id, 256)
     .then(blobUrl => {
@@ -86,26 +99,14 @@ const createPopupDom = (id: string) => {
       };
 
       anchor.appendChild(img);
-      // 画像とダウンロードリンクを追加
-      popupDom.appendChild(anchor);
+      // 画像とダウンロードリンクを削除ボタンの前に挿入
+      popupDom.insertBefore(anchor, buttonDom);
     })
     .catch(() => {
       loadingDiv.textContent = "画像の取得に失敗しました";
       loadingDiv.style.backgroundColor = "#ffeeee";
     });
 
-  // 削除ボタン
-  const buttonDom = document.createElement("button");
-  buttonDom.textContent = "削除";
-  buttonDom.style.marginTop = "8px";
-  buttonDom.style.padding = "4px 12px";
-  buttonDom.onclick = async () => {
-    if (!confirm("地点を削除しますか？")) return;
-    await deletePoint(id);
-    clearMarkers();
-    await loadMarkers();
-  };
-  popupDom.appendChild(buttonDom);
   return popupDom;
 };
 
@@ -131,8 +132,39 @@ const clearMarkers = () => {
   markers.forEach((marker) => marker.remove());
 };
 
+// === ローディングオーバーレイ操作 ===
+function showLoadingOverlay() {
+  let overlay = document.getElementById("loading-overlay");
+  if (!overlay) {
+    overlay = document.createElement("div");
+    overlay.id = "loading-overlay";
+    overlay.style.position = "fixed";
+    overlay.style.top = "0";
+    overlay.style.left = "0";
+    overlay.style.width = "100vw";
+    overlay.style.height = "100vh";
+    overlay.style.background = "rgba(255,255,255,0.7)";
+    overlay.style.zIndex = "9999";
+    overlay.style.display = "flex";
+    overlay.style.alignItems = "center";
+    overlay.style.justifyContent = "center";
+    overlay.innerHTML = `<div style='font-size:2rem;color:#333;'>読み込み中...</div>`;
+    document.body.appendChild(overlay);
+  } else {
+    overlay.style.display = "flex";
+  }
+}
+function hideLoadingOverlay() {
+  const overlay = document.getElementById("loading-overlay");
+  if (overlay) {
+    overlay.style.display = "none";
+  }
+}
+
 map.on("load", async () => {
+  showLoadingOverlay();
   await loadMarkers();
+  hideLoadingOverlay();
 });
 
 map.on("click", async (e) => {
@@ -144,7 +176,9 @@ map.on("click", async (e) => {
   if (!confirm("地点を作成しますか？")) return;
 
   const { lng, lat } = e.lngLat;
+  showLoadingOverlay();
   await createPoint({ longitude: lng, latitude: lat });
   clearMarkers();
   await loadMarkers();
+  hideLoadingOverlay();
 });
