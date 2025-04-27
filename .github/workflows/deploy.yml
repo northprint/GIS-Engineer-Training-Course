@@ -245,7 +245,7 @@ jobs:
           fi
 
           # CloudFrontキャッシュを無効化
-          DISTRIBUTION_ID=$(aws cloudformation list-stack-resources --stack-name ${{ env.STACK_NAME }} | jq -r '.StackResourceSummaries[] | select(.LogicalResourceId=="SatelliteImageDistribution") | .PhysicalResourceId')
+          DISTRIBUTION_ID=$(aws cloudformation list-stack-resources --stack-name ${{ env.STACK_NAME }} | jq -r '.StackResourceSummaries[] | select(.ResourceType=="AWS::CloudFront::Distribution" and (.LogicalResourceId | test("SatelliteImageDistribution"))) | .PhysicalResourceId')
           echo "DISTRIBUTION_ID=${DISTRIBUTION_ID}"
           if [ ! -z "${DISTRIBUTION_ID}" ]; then
             echo "CloudFrontキャッシュを無効化します: ${DISTRIBUTION_ID}"
