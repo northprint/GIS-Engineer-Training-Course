@@ -73,7 +73,7 @@ const createPopupDom = (id: string) => {
 
   // 画像取得は非同期で実行
   satelliteImageUrl(id, 256)
-    .then(blobUrl => {
+    .then((blobUrl) => {
       // 画像を表示する要素
       const anchor = document.createElement("a");
       anchor.href = blobUrl;
@@ -148,7 +148,26 @@ function showLoadingOverlay() {
     overlay.style.display = "flex";
     overlay.style.alignItems = "center";
     overlay.style.justifyContent = "center";
-    overlay.innerHTML = `<div style='font-size:2rem;color:#333;'>読み込み中...</div>`;
+    overlay.innerHTML = `
+      <div style="display:flex;flex-direction:column;align-items:center;">
+        <div class="spinner"></div>
+        <div style='font-size:0.7rem;color:#333;margin-top:16px;'>読み込み中...</div>
+      </div>
+      <style>
+        .spinner {
+          width: 48px;
+          height: 48px;
+          border: 6px solid #ccc;
+          border-top: 6px solid #333;
+          border-radius: 50%;
+          animation: spin 1s linear infinite;
+          margin: 0 auto;
+        }
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+      </style>
+    `;
     document.body.appendChild(overlay);
   } else {
     overlay.style.display = "flex";
