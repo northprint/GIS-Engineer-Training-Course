@@ -33,6 +33,18 @@ app.add_middleware(
 
 pool = None
 
+async def init_pool_with_retry(dsn, max_retries=3, delay=3):
+    last_err = None
+    for i in range(max_retries):
+        try:
+            return await asyncpg.create_pool(dsn=dsn)
+        except Exception as e:
+            last_err = e
+            if i < max_retries - 1:
+                print(f"DBプール初期化リトライ {i+1}回目失敗。{delay}秒待つ…")
+                await asyncio.sleep(delay)
+    raise last_err
+
 @app.on_event("startup")
 def on_startup():
     global pool
@@ -41,9 +53,7 @@ def on_startup():
         logger.warning("DATABASE_URL環境変数が設定されていません。デフォルト値を使用します。")
         database_url = "postgresql://postgres:postgres@localhost:5432/satellite_image_db"
     try:
-        pool = psycopg2.pool.SimpleConnectionPool(
-            dsn=database_url, minconn=1, maxconn=10
-        )
+        pool = init_pool_with_retry(dsn=database_url)
         logger.info("データベース接続プールを初期化しました")
     except Exception as e:
         logger.error(f"データベース接続プールの初期化に失敗しました: {str(e)}")

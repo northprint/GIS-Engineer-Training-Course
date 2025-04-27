@@ -110,22 +110,43 @@ const createPopupDom = (id: string) => {
   return popupDom;
 };
 
+// --- リトライ付きpoints取得 ---
+async function loadPointsWithRetry(maxRetries = 3, delayMs = 1000) {
+  let lastErr: unknown = null;
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      return await loadPoints();
+    } catch (err) {
+      lastErr = err;
+      if (i < maxRetries - 1) {
+        await new Promise(r => setTimeout(r, delayMs));
+      }
+    }
+  }
+  throw lastErr;
+}
+
 const loadMarkers = async () => {
-  const points = await loadPoints();
-  points.features.forEach((feature) => {
-    const popup = new Popup().setMaxWidth("500px");
-    const marker = new Marker()
-      .setLngLat(feature.geometry.coordinates)
-      .addTo(map)
-      .setPopup(popup);
-    marker.getElement().addEventListener("click", () => {
-      isMarkerClicked = true;
-      (async () => {
-        popup.setDOMContent(await createPopupDom(feature.properties.id));
-      })();
+  try {
+    const points = await loadPointsWithRetry();
+    points.features.forEach((feature) => {
+      const popup = new Popup().setMaxWidth("500px");
+      const marker = new Marker()
+        .setLngLat(feature.geometry.coordinates)
+        .addTo(map)
+        .setPopup(popup);
+      marker.getElement().addEventListener("click", () => {
+        isMarkerClicked = true;
+        (async () => {
+          popup.setDOMContent(await createPopupDom(feature.properties.id));
+        })();
+      });
+      markers.push(marker);
     });
-    markers.push(marker);
-  });
+  } catch (err) {
+    hideLoadingOverlay();
+    alert("ポイント情報の取得に失敗しました。時間をおいて再度お試しください。\n" + (err instanceof Error ? err.message : ""));
+  }
 };
 
 const clearMarkers = () => {
